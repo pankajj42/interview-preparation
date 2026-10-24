@@ -1,0 +1,34 @@
+<section class="utility-section" id="quick-reference">
+<div class="section-kicker">One-screen cheat sheet</div>
+<h2>Pattern quick reference</h2>
+<pre class="quick-pre">
+```
+Pattern          | State Definition           | Transition Type           | Time Complexity
+-----------------|----------------------------|---------------------------|------------------
+Fibonacci/Linear | dp[i]                      | dp[i-k...i-1]             | O(n)
+Kadane's         | dp[i] (ending at i)        | max(x, x + dp[i-1])       | O(n)
+0/1 Knapsack     | dp[i][w] or dp[w]          | take/skip                 | O(n*W)
+Unbounded        | dp[w]                      | reuse allowed             | O(n*W)
+LCS              | dp[i][j]                   | match/mismatch            | O(n*m)
+LIS              | dp[i] or tails[]           | extend/binary search      | O(n^2) or O(n log n)
+Palindrome       | dp[i][j]                   | expand/shrink             | O(n^2)
+MCM/Partition    | dp[i][j]                   | split at k                | O(n^3)
+Grid DP          | dp[r][c] or dp[r][c1][c2]  | from neighbors            | O(r*c) or O(r*c^2)
+State Machine    | dp[day][state]             | state transitions         | O(n*k)
+Bitmask          | dp[mask][i]                | add element j             | O(2^n * n^2)
+Tree DP          | dp[node][state]            | post-order combine        | O(n)
+Graph DP         | dp[u]                      | topo order relax          | O(V+E)
+Digit DP         | dp[pos][tight][...]        | place digit d             | O(pos * tight * states * 10)
+Probability      | E[state]                   | expected value equation   | O(states)
+Catalan          | dp[n]                      | split and combine         | O(n^2)
+Minimax          | dp[i][j]                   | pick left/right           | O(n^2)
+DP + DS          | dp[i] + query              | range query               | O(n log n)
+SOS DP           | dp[mask]                   | submask accumulation      | O(n * 2^n)
+CHT/D&amp;C          | dp[i]                      | convex hull / divide-conq | O(n log n)
+Functional Graph | dp[u] + cycle detection    | tree + cycle solve        | O(n)
+Profile DP       | dp[row][mask]              | row filling transitions   | O(rows * 2^cols * T)
+```
+
+---
+</pre>
+</section>

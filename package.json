@@ -1,0 +1,46 @@
+{
+  "name": "interview-preparation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Interview preparation: Striver playlists, Ultimate DP guide, System Design blueprint and Crack the Coding Interview, with local progress, revision marks and remarks.",
+  "type": "module",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26",
+    "npm": ">=12"
+  },
+  "packageManager": "npm@12.2.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "npx --yes serve@latest out -l 3000",
+    "typecheck": "tsc --noEmit",
+    "data": "node scripts/build-striver.mjs && python3 scripts/build_ctci.py && node scripts/build-ctci-index.mjs && python3 scripts/extract_dp.py && python3 scripts/extract_sd.py && node scripts/scope-css.mjs",
+    "verify": "python3 scripts/verify.py"
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@fontsource-variable/space-grotesk": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@mui/icons-material": "^9.5.0",
+    "@mui/material": "^9.5.0",
+    "@mui/material-nextjs": "^9.5.0",
+    "mermaid": "^12.2.0",
+    "next": "^16.4.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "postcss": "^8.5.30",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2"
+  }
+}

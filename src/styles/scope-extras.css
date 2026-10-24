@@ -1,0 +1,9 @@
+/* Wrappers for the two original guides rendered inside the app */
+.sd-scope { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.sd-scope .content-wrap { margin: 0 auto; padding: 26px 22px 44px; }
+.sd-scope .hero { padding-top: 8px; }
+.sd-scope .sd-slot { display: inline-block; }
+.sd-scope h3 .sd-slot, .sd-scope h4 .sd-slot { margin-right: 4px; }
+.dp-scope { max-width: 100%; }
+.dp-scope .utility-section { margin-top: 0; }
+.anchor-row:target { background: color-mix(in srgb, var(--accent) 10%, transparent); }

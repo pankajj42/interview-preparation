@@ -1,0 +1,104 @@
+/* Layer order lets Tailwind utilities override MUI (emotion) styles. Preflight is intentionally not imported so the
+   two original guides keep the browser defaults their own CSS was written against. */
+@layer theme, base, mui, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@custom-variant dark (&:where([data-mui-color-scheme="dark"], [data-mui-color-scheme="dark"] *));
+
+@theme inline {
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Space Grotesk Variable', 'Space Grotesk', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-star: var(--star);
+  --color-danger: var(--danger);
+}
+
+/* ---------- tokens ---------- */
+:root {
+  --bg: #f2f4f8; --surface: #ffffff; --surface-2: #edf0f5; --surface-3: #e3e8ef;
+  --ink: #0f1829; --muted: #556177; --faint: #8592a6; --line: #dbe1ea; --line-strong: #c6cfdb;
+  --ok: #1b9a60; --ok-soft: #dcf3e8; --star: #c98a0b; --danger: #c0392b;
+  --accent: #4f46e5; --accent-soft: color-mix(in srgb, var(--accent) 11%, transparent);
+  --shadow: 0 1px 2px rgba(15, 24, 41, 0.05), 0 10px 30px rgba(15, 24, 41, 0.06);
+  --radius: 14px;
+  --nav-w: 292px;
+}
+[data-mui-color-scheme='dark'] {
+  --bg: #090d13; --surface: #111722; --surface-2: #171e2b; --surface-3: #202a39;
+  --ink: #e8edf5; --muted: #9ba8bb; --faint: #6c7b91; --line: #232d3c; --line-strong: #324057;
+  --ok: #4fd08c; --ok-soft: #12301f; --star: #f2c14e; --danger: #ff8b7a;
+  --accent: #8b83ff;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 34px rgba(0, 0, 0, 0.38);
+}
+/* one accent hue per section, so colour always says where you are */
+[data-section='striver'] { --accent: #cf5a22; }
+[data-section='dp'] { --accent: #5b52f0; }
+[data-section='sd'] { --accent: #1f6a9e; }
+[data-section='ctci'] { --accent: #0b8a76; }
+[data-section='revision'] { --accent: #b9770e; }
+[data-mui-color-scheme='dark'] [data-section='striver'] { --accent: #ff8f5e; }
+[data-mui-color-scheme='dark'] [data-section='dp'] { --accent: #948dff; }
+[data-mui-color-scheme='dark'] [data-section='sd'] { --accent: #6ec1e4; }
+[data-mui-color-scheme='dark'] [data-section='ctci'] { --accent: #3fd1b6; }
+[data-mui-color-scheme='dark'] [data-section='revision'] { --accent: #f4c050; }
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; scroll-padding-top: 84px; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--font-sans); font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
+  input { border: 0; background: transparent; outline: 0; margin: 0; padding: 0; }
+  a { color: inherit; }
+  h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); letter-spacing: -0.015em; }
+  p { margin: 0; }
+  ul, ol { margin: 0; }
+}
+
+@layer components {
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .focus-ring:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .mono { font-family: var(--font-mono); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .row-cv { content-visibility: auto; contain-intrinsic-size: auto 58px; }
+
+  /* segmented progress strip: one segment per sub-section, filled by completion */
+  .strip { display: flex; gap: 3px; height: 8px; }
+  .strip > i { position: relative; flex: 1 1 0; min-width: 2px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+  .strip > i > b { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: inherit; transition: width 0.25s ease; }
+
+  /* markdown inside remarks */
+  .md { font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+  .md > :first-child { margin-top: 0; }
+  .md > :last-child { margin-bottom: 0; }
+  .md p, .md ul, .md ol, .md pre, .md blockquote, .md table { margin: 0.6em 0; }
+  .md ul, .md ol { padding-left: 1.4em; }
+  .md h1, .md h2, .md h3, .md h4 { margin: 1em 0 0.4em; font-size: 1.05em; }
+  .md code { font-family: var(--font-mono); font-size: 0.88em; background: var(--surface-2); padding: 0.12em 0.38em; border-radius: 5px; }
+  .md pre { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; }
+  .md pre code { background: none; padding: 0; }
+  .md blockquote { border-left: 3px solid var(--accent); margin-left: 0; padding: 0.1em 0 0.1em 1em; color: var(--muted); }
+  .md a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+  .md table { border-collapse: collapse; display: block; overflow-x: auto; }
+  .md th, .md td { border: 1px solid var(--line); padding: 5px 10px; }
+  .md img { max-width: 100%; }
+}
+
+@media print { .no-print { display: none !important; } }

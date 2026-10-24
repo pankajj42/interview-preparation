@@ -1,0 +1,693 @@
+# Master DSA Problem Directory (LeetCode & GeeksforGeeks)
+# Format: '## n. Section' / '* Entry' / '> Variant' / 'LC: label ;; slug ;; note' / 'GFG: label ;; path ;; note'
+# LC link = https://leetcode.com/problems/<slug>   GFG link = https://www.geeksforgeeks.org/<path>
+
+## 1. Array & Matrix Fundamentals
+* Set Matrix Zeroes
+LC: Set Matrix Zeroes ;; set-matrix-zeroes/
+GFG: Set Matrix Zeroes ;; problems/set-matrix-zeroes/1
+* Pascal's Triangle
+> All Rows / Nth Row
+LC: Pascal's Triangle ;; pascals-triangle/
+GFG: Pascal's Triangle ;; problems/pascal-triangle0652/1
+> Element at (r, c)
+LC: Pascal's Triangle II ;; pascals-triangle-ii/
+GFG: Nth Row of Pascal's Triangle ;; problems/find-n-th-row-of-pascal-triangle0909/1
+* Basic Math Problems
+> Palindrome Number
+LC: Palindrome Number ;; palindrome-number/
+GFG: Palindrome ;; problems/palindrome0746/1
+> Armstrong Number
+LC: Armstrong Number ;; armstrong-number/ ;; Premium
+GFG: Armstrong Numbers ;; problems/armstrong-numbers2827/1
+> Reverse a Number
+LC: Reverse Integer ;; reverse-integer/
+GFG: Reverse Digits ;; problems/reverse-digits0161/1
+> Count Digits of a Number
+LC: Count Digits ;; count-the-digits-that-divide-a-number/
+GFG: Count Digits ;; problems/count-digits5716/1
+> GCD
+LC: Find Greatest Common Divisor of Array ;; find-greatest-common-divisor-of-array/
+GFG: GCD of Two Numbers ;; problems/gcd-of-two-numbers3459/1
+> Divisors of a Number
+LC: The k-th Factor of n ;; the-k-th-factor-of-n/
+GFG: All Divisors of a Number ;; problems/all-divisors-of-a-number/1
+> Check if Prime
+LC: Prime Number check variant ;; count-primes/
+GFG: Prime Number ;; problems/prime-number2314/1
+> Sieve of Eratosthenes
+LC: Count Primes ;; count-primes/
+GFG: Sieve of Eratosthenes ;; problems/sieve-of-eratosthenes5242/1
+
+## 2. Array Manipulation & Algorithms
+* Next Permutation
+LC: Next Permutation ;; next-permutation/
+GFG: Next Permutation ;; problems/next-permutation5226/1
+* Max Sum Subarray (Kadane's Algo)
+LC: Maximum Subarray ;; maximum-subarray/
+GFG: Kadane's Algorithm ;; problems/kadanes-algorithm-1587115620/1
+* Sort 0's, 1's, 2's
+LC: Sort Colors ;; sort-colors/
+GFG: Sort an array of 0s, 1s and 2s ;; problems/sort-an-array-of-0s-1s-and-2s4231/1
+* Stock Buy and Sell (Single Transaction)
+LC: Best Time to Buy and Sell Stock ;; best-time-to-buy-and-sell-stock/
+GFG: Stock Buy and Sell ;; problems/stock-buy-and-sell-1587115620/1
+* Rotate Matrix
+LC: Rotate Image ;; rotate-image/
+GFG: Rotate by 90 degree ;; problems/rotate-by-90-degree0356/1
+* Merge Overlapping Intervals
+LC: Merge Intervals ;; merge-intervals/
+GFG: Overlapping Intervals ;; problems/8a644e94faaa94968cd866b9c9686d1f11a9f39d/1
+* Merge Two Sorted Arrays In-Place
+LC: Merge Sorted Array ;; merge-sorted-array/
+GFG: Merge Without Extra Space ;; problems/merge-two-sorted-arrays-1587115620/1
+
+## 3. Finding Elements & Mathematical Logic
+* Finding Duplicate Number in Array
+LC: Find the Duplicate Number ;; find-the-duplicate-number/
+GFG: Find duplicates in an array ;; problems/find-duplicates-in-an-array/1
+* Find Repeated and Missing Number (1 to N)
+LC: Find Missing and Repeated Values ;; find-missing-and-repeated-values/
+GFG: Missing And Repeating ;; problems/find-missing-and-repeating2512/1
+* Count Inversions
+LC: Reverse Pairs ;; reverse-pairs/ ;; Related/Extension
+GFG: Inversion of Array ;; problems/inversion-of-array-1587115620/1
+* Search in Sorted 2D Matrix
+LC: Search a 2D Matrix ;; search-a-2d-matrix/
+GFG: Search in a matrix ;; problems/search-in-a-matrix-1587115620/1
+* Pow(x, n)
+LC: Pow(x, n) ;; powx-n/
+GFG: Power of Numbers ;; problems/power-of-numbers-1587115620/1
+* Majority Element (> N/2)
+LC: Majority Element ;; majority-element/
+GFG: Majority Element ;; problems/majority-element-1587115620/1
+* Majority Element (> N/3 - Extended Boyer-Moore)
+LC: Majority Element II ;; majority-element-ii/
+GFG: Majority Vote ;; problems/majority-vote/1
+* Grid Unique Paths
+LC: Unique Paths ;; unique-paths/
+GFG: Number of unique paths ;; problems/number-of-unique-paths5339/1
+* Count Reverse Pairs
+LC: Reverse Pairs ;; reverse-pairs/
+GFG: Reverse Pairs ;; problems/reverse-pairs/1
+
+## 4. N-Sum & Subarray Logic
+* 2 Sum Problem
+LC: Two Sum ;; two-sum/
+GFG: Key Pair ;; problems/key-pair5616/1
+* 3 Sum Problem
+LC: 3Sum ;; 3sum/
+GFG: Triplet Sum in Array ;; problems/triplet-sum-in-array-1587115620/1
+* 4 Sum Problem
+LC: 4Sum ;; 4sum/
+GFG: Find all four sum numbers ;; problems/find-all-four-sum-numbers1732/1
+* Longest Consecutive Sequence
+LC: Longest Consecutive Sequence ;; longest-consecutive-sequence/
+GFG: Longest consecutive subsequence ;; problems/longest-consecutive-subsequence2449/1
+* Longest Subarray with Sum Zero
+LC: Maximum Size Subarray Sum Equals k ;; maximum-size-subarray-sum-equals-k/ ;; Premium
+GFG: Largest subarray with 0 sum ;; problems/largest-subarray-with-0-sum/1
+* Number of Subarrays with Given XOR K
+LC: Subarrays with XOR K ;; count-the-number-of-good-subarrays/ ;; Variant
+GFG: Count the number of subarrays having a given XOR ;; problems/count-the-number-of-subarrays-having-a-given-xor/1
+
+## 5. Sliding Window & Two Pointers
+* Longest Substring Without Repeating Characters
+LC: Longest Substring Without Repeating Characters ;; longest-substring-without-repeating-characters/
+GFG: Longest distinct characters in string ;; problems/longest-distinct-characters-in-string5848/1
+* Trapping Rainwater
+LC: Trapping Rain Water ;; trapping-rain-water/
+GFG: Trapping Rain Water ;; problems/trapping-rain-water-1587115620/1
+* Remove Duplicates from Sorted Array In-Place
+LC: Remove Duplicates from Sorted Array ;; remove-duplicates-from-sorted-array/
+GFG: Remove duplicate elements from sorted array ;; problems/remove-duplicate-elements-from-sorted-array/1
+* Max Consecutive Ones in an Array
+LC: Max Consecutive Ones ;; max-consecutive-ones/
+GFG: Max consecutive ones ;; problems/max-consecutive-ones/1
+
+## 6. Linked Lists (LL)
+* Reverse a Linked List
+LC: Reverse Linked List ;; reverse-linked-list/
+GFG: Reverse a linked list ;; problems/reverse-a-linked-list/1
+* Middle Element in Linked List
+LC: Middle of the Linked List ;; middle-of-the-linked-list/
+GFG: Finding the middle element in a linked list ;; problems/finding-middle-element-in-a-linked-list/1
+* Merge Two Sorted Linked Lists
+LC: Merge Two Sorted Lists ;; merge-two-sorted-lists/
+GFG: Merge two sorted linked lists ;; problems/merge-two-sorted-linked-lists/1
+* Add Two Numbers Represented as LLs
+LC: Add Two Numbers ;; add-two-numbers/
+GFG: Add two numbers represented by linked lists ;; problems/add-two-numbers-represented-by-linked-lists/1
+* Delete Nth Node From End of List
+LC: Remove Nth Node From End of List ;; remove-nth-node-from-end-of-list/
+GFG: Remove Nth node from end of linked list ;; problems/nth-node-from-end-of-linked-list/1
+* Delete a Node in O(1) Time
+LC: Delete Node in a Linked List ;; delete-node-in-a-linked-list/
+GFG: Delete a node without any pointer to head node ;; problems/delete-without-head-pointer/1
+* Find Intersection in a Y-Shaped LL
+LC: Intersection of Two Linked Lists ;; intersection-of-two-linked-lists/
+GFG: Intersection point in Y shaped linked lists ;; problems/intersection-point-in-y-shaped-linked-lists/1
+* Cycle Detection & Length of Cycle
+> Cycle Detection
+LC: Linked List Cycle ;; linked-list-cycle/
+GFG: Detect Loop in linked list ;; problems/detect-loop-in-linked-list/1
+> Length of Cycle
+LC: Linked List Cycle II (extension) ;; linked-list-cycle-ii/
+GFG: Find length of Loop ;; problems/find-length-of-loop/1
+* Reverse Linked List in Groups of K
+LC: Reverse Nodes in k-Group ;; reverse-nodes-in-k-group/
+GFG: Reverse a Linked List in groups of given size ;; problems/reverse-a-linked-list-in-groups-of-given-size/1
+* Check if LL is a Palindrome
+LC: Palindrome Linked List ;; palindrome-linked-list/
+GFG: Check if linked list is mirrored / palindrome ;; problems/check-if-linked-list-is-palindromic/1
+* Find Starting Point of Cycle in LL
+LC: Linked List Cycle II ;; linked-list-cycle-ii/
+GFG: First node of loop in linked list ;; problems/find-the-first-node-of-loop-in-linked-list/1
+* Flattening a Linked List
+LC: Flatten a Multilevel Doubly Linked List ;; flatten-a-multilevel-doubly-linked-list/ ;; Variant
+GFG: Flattening a Linked List ;; problems/flattening-a-linked-list/1
+* Rotate Linked List Right by K Steps
+LC: Rotate List ;; rotate-list/
+GFG: Rotate a Linked List ;; problems/rotate-a-linked-list/1
+* Deep Copy of LL with Next and Random Pointers
+LC: Copy List with Random Pointer ;; copy-list-with-random-pointer/
+GFG: Clone a linked list with next and random pointer ;; problems/clone-a-linked-list-with-next-and-random-pointer/1
+
+## 7. Greedy Algorithms
+* Max Meetings in One Room
+LC: Meeting Rooms II ;; meeting-rooms-ii/ ;; Premium
+GFG: Maximum meetings in one room ;; problems/maximum-meetings-in-one-room/1
+* Minimum Platforms Required
+LC: Meeting Rooms III ;; meeting-rooms-iii/ ;; Variant
+GFG: Minimum Platforms ;; problems/minimum-platforms-1587115620/1
+* Job Sequencing Problem
+LC: Maximum Profit in Job Scheduling ;; maximum-profit-in-job-scheduling/ ;; Variant
+GFG: Job Sequencing Problem ;; problems/job-sequencing-problem-1587115620/1
+* Fractional Knapsack
+LC: Maximum Units on a Truck ;; maximum-units-on-a-truck/ ;; Variant
+GFG: Fractional Knapsack ;; problems/fractional-knapsack-1587115620/1
+* Min Number of Coins Needed
+LC: Coin Change ;; coin-change/
+GFG: Number of Coins ;; problems/number-of-coins1827/1
+* Activity Selection Problem
+LC: Non-overlapping Intervals ;; non-overlapping-intervals/
+GFG: Activity Selection ;; problems/activity-selection-1587115620/1
+
+## 8. Recursion & Backtracking
+* Subset Sum
+LC: Subsets ;; subsets/ ;; Variant
+GFG: Subset Sums ;; problems/subset-sums2234/1
+* Subset Sum II
+LC: Subsets II ;; subsets-ii/
+GFG: Subsets with XOR value / Subset Sum II ;; problems/subset-sum-problem2014/1
+* Combination Sum
+LC: Combination Sum ;; combination-sum/
+GFG: Combination Sum ;; problems/combination-sum-1587115620/1
+* Combination Sum II
+LC: Combination Sum II ;; combination-sum-ii/
+GFG: Combination Sum II ;; problems/combination-sum-ii-1587115620/1
+* Palindrome Partitioning
+LC: Palindrome Partitioning ;; palindrome-partitioning/
+GFG: Palindromic Partitioning ;; problems/palindromic-patitioning4845/1
+* K-th Permutation Sequence
+LC: Permutation Sequence ;; permutation-sequence/
+GFG: Find all distinct permutations of a given string / K-th permutation ;; problems/find-all-the-permutations-the-given-string/1
+* Print All Permutations
+LC: Permutations ;; permutations/
+GFG: Permutations of a given string ;; problems/permutations-of-a-given-string2041/1
+* N-Queen Problem
+LC: N-Queens ;; n-queens/
+GFG: N-Queen Problem ;; problems/n-queen-problem0315/1
+* Sudoku Solver
+LC: Sudoku Solver ;; sudoku-solver/
+GFG: Solve the Sudoku ;; problems/solve-the-sudoku-1587115620/1
+* M-Coloring Problem Variants
+> Check if graph can be colored using M colors
+LC: Flower Planting With No Adjacent ;; flower-planting-with-no-adjacent/
+GFG: M-Coloring Problem ;; problems/m-coloring-problem-1587115620/1
+> Number of ways to color using M colors
+LC: Painting a Grid With Three Different Colors ;; painting-a-grid-with-three-different-colors/
+GFG: Count Ways to Color Graph ;; number-of-ways-to-color-a-graph/
+> Minimum number of colors (Chromatic Number)
+LC: Is Graph Bipartite? ;; is-graph-bipartite/
+GFG: Graph Coloring / Chromatic Number ;; graph-coloring-applications/
+* Rat in a Maze
+LC: The Maze series ;; the-maze/ ;; Premium
+GFG: Rat in a Maze Problem - I ;; problems/rat-in-a-maze-problem/1
+* Word Break
+LC: Word Break ;; word-break/
+GFG: Word Break ;; problems/word-break1352/1
+
+## 9. Binary Search & Special Searching
+* N-th Root of Integer M
+LC: Sqrt(x) ;; sqrtx/ ;; Variant
+GFG: Find nth root of m ;; problems/find-nth-root-of-m5843/1
+* Find Median of a Row-Wise Sorted Matrix
+LC: Kth Smallest Element in a Sorted Matrix ;; kth-smallest-element-in-a-sorted-matrix/
+GFG: Median in a row-wise sorted Matrix ;; problems/median-in-a-row-wise-sorted-matrix1527/1
+* Single Element in Sorted Array
+LC: Single Element in a Sorted Array ;; single-element-in-a-sorted-array/
+GFG: Find the element that appears once in sorted array ;; problems/element-appearing-once-in-sorted-array0652/1
+* Search Element in Sorted and Rotated Array
+LC: Search in Rotated Sorted Array ;; search-in-rotated-sorted-array/
+GFG: Search in a Rotated Array ;; problems/search-in-a-rotated-array0461/1
+* Median of Two Sorted Arrays
+LC: Median of Two Sorted Arrays ;; median-of-two-sorted-arrays/
+GFG: Median of 2 Sorted Arrays of Different Sizes ;; problems/median-of-2-sorted-arrays-of-different-sizes1131/1
+* K-th Element of Two Sorted Arrays
+LC: K-th Smallest Prime Fraction / Variant ;; k-th-smallest-prime-fraction/
+GFG: K-th element of two sorted arrays ;; problems/k-th-element-of-two-sorted-array1317/1
+* Book Allocation Problem
+LC: Split Array Largest Sum ;; split-array-largest-sum/
+GFG: Allocate minimum number of pages ;; problems/allocate-minimum-number-of-pages0937/1
+* Aggressive Cows
+LC: Magnetic Force Between Two Balls ;; magnetic-force-between-two-balls/
+GFG: Aggressive Cows ;; problems/aggressive-cows/1
+
+## 10. Heaps & Priority Queues
+* Implement Min and Max Heaps
+LC: Kth Largest Element in an Array ;; kth-largest-element-in-an-array/
+GFG: Binary Heap Operations ;; problems/operations-on-binary-min-heap/1
+* Kth Largest / Smallest Element
+> Kth Largest
+LC: Kth Largest Element in an Array ;; kth-largest-element-in-an-array/
+GFG: Kth largest element ;; problems/kth-largest-element4219/1
+> Kth Smallest
+LC: Kth Smallest Element in a BST ;; kth-smallest-element-in-a-bst/
+GFG: Kth smallest element ;; problems/kth-smallest-element5615/1
+* Find Median from Data Stream
+LC: Find Median from Data Stream ;; find-median-from-data-stream/
+GFG: Find median in a stream ;; problems/find-median-in-a-stream-1587115620/1
+* Top K Maximum Sum Combinations
+LC: Find K Pairs with Smallest Sums ;; find-k-pairs-with-smallest-sums/
+GFG: K Maximum Sum Combinations ;; problems/maximum-sum-combination/1
+* Merge K Sorted Arrays
+LC: Merge k Sorted Lists ;; merge-k-sorted-lists/
+GFG: Merge K sorted arrays ;; problems/merge-k-sorted-arrays/1
+* Top K Frequent Elements
+LC: Top K Frequent Elements ;; top-k-frequent-elements/
+GFG: Top k numbers in a stream ;; problems/top-k-numbers-in-a-stream--170637/1
+
+## 11. Stacks & Queues
+* Implement Stack
+> Using Array
+LC: Implement Stack using Queues ;; implement-stack-using-queues/
+GFG: Implement Stack using Array ;; problems/implement-stack-using-array/1
+> Using Queues
+LC: Implement Stack using Queues ;; implement-stack-using-queues/
+GFG: Implement Stack using Queue ;; problems/stack-using-two-queues/1
+* Implement Queue
+> Using Array
+LC: Implement Queue using Stacks ;; implement-queue-using-stacks/
+GFG: Implement Queue using Array ;; problems/implement-queue-using-array/1
+> Using Two Stacks
+LC: Implement Queue using Stacks ;; implement-queue-using-stacks/
+GFG: Queue using two stacks ;; problems/queue-using-two-stacks/1
+* Check Balanced Parentheses
+LC: Valid Parentheses ;; valid-parentheses/
+GFG: Parenthesis Checker ;; problems/parenthesis-checker2744/1
+* Next Greater Element
+LC: Next Greater Element I ;; next-greater-element-i/
+GFG: Next Larger Element ;; problems/next-larger-element-1587115620/1
+* Sort a Stack Using Only Recursion
+LC: Evaluate Reverse Polish Notation ;; evaluate-reverse-polish-notation/ ;; Concept variant
+GFG: Sort a stack ;; problems/sort-a-stack/1
+* Previous Smaller Element
+LC: Final Prices With a Special Discount in a Shop ;; final-prices-with-a-special-discount-in-a-shop/
+GFG: Smallest number on left ;; problems/smallest-number-on-left1249/1
+* LRU Cache Implementation
+LC: LRU Cache ;; lru-cache/
+GFG: LRU Cache ;; problems/lru-cache/1
+* LFU Cache Implementation
+LC: LFU Cache ;; lfu-cache/
+GFG: LFU cache ;; problems/lfu-cache/1
+* Largest Rectangle in Histogram
+LC: Largest Rectangle in Histogram ;; largest-rectangle-in-histogram/
+GFG: Maximum rectangular area in a histogram ;; problems/maximum-rectangular-area-in-a-histogram-1587115620/1
+* Sliding Window Maximum
+LC: Sliding Window Maximum ;; sliding-window-maximum/
+GFG: Maximum of all subarrays of size k ;; problems/maximum-of-all-subarrays-of-size-k3101/1
+* Implement Min Stack
+LC: Min Stack ;; min-stack/
+GFG: Get minimum element from stack ;; problems/get-minimum-element-from-stack/1
+* Rotten Oranges
+LC: Rotting Oranges ;; rotting-oranges/
+GFG: Rotten Oranges ;; problems/rotten-oranges2536/1
+* Stock Span
+LC: Online Stock Span ;; online-stock-span/
+GFG: Stock span problem ;; problems/stock-span-problem-1587115620/1
+* Maximum of Minimums of Every Window Size
+LC: Sliding Window Maximum Variant ;; sliding-window-maximum/
+GFG: Maximum of minimum for every window size ;; problems/maximum-of-minimum-for-every-window-size3453/1
+* Celebrity Problem
+LC: Find the Celebrity ;; find-the-celebrity/ ;; Premium
+GFG: The Celebrity Problem ;; problems/the-celebrity-problem/1
+
+## 12. Strings & Pattern Matching
+* Reverse Words in a String
+LC: Reverse Words in a String ;; reverse-words-in-a-string/
+GFG: Reverse words in a given string ;; problems/reverse-words-in-a-given-string5459/1
+* Longest Palindromic Substring
+LC: Longest Palindromic Substring ;; longest-palindromic-substring/
+GFG: Longest Palindrome in a String ;; problems/longest-palindrome-in-a-string3411/1
+* Roman Number to Int and Vice Versa
+> Roman to Integer
+LC: Roman to Integer ;; roman-to-integer/
+GFG: Roman Number to Integer ;; problems/roman-number-to-integer3201/1
+> Integer to Roman
+LC: Integer to Roman ;; integer-to-roman/
+GFG: Integer to Roman Values ;; problems/convert-to-roman-no/1
+* Implement Atoi
+LC: String to Integer (atoi) ;; string-to-integer-atoi/
+GFG: Implement Atoi ;; problems/implement-atoi/1
+* Longest Common Prefix (Using Trie)
+LC: Longest Common Prefix ;; longest-common-prefix/
+GFG: Longest Common Prefix in an Array ;; problems/longest-common-prefix-in-an-array5129/1
+* Rabin Karp Algorithm
+LC: Find the Index of the First Occurrence in a String ;; find-the-index-of-the-first-occurrence-in-a-string/
+GFG: Rabin-Karp Algorithm for Pattern Searching ;; problems/search-pattern-rabin-karp-algorithm--141631/1
+* KMP Algorithm
+LC: Find the Index of the First Occurrence in a String ;; find-the-index-of-the-first-occurrence-in-a-string/
+GFG: Search Pattern (KMP-Algorithm) ;; problems/search-pattern0205/1
+* Z-Algorithm
+LC: Find the Index of the First Occurrence in a String ;; find-the-index-of-the-first-occurrence-in-a-string/
+GFG: Z-algorithm ;; problems/z-algorithm/1
+* Min Characters to be Inserted Anywhere to be a Palindrome
+LC: Minimum Insertion Steps to Make a String Palindrome ;; minimum-insertion-steps-to-make-a-string-palindrome/
+GFG: Minimum insertions to form a palindrome ;; problems/form-a-palindrome1455/1
+* Min Characters to be Inserted in Front to be a Palindrome
+LC: Shortest Palindrome ;; shortest-palindrome/
+GFG: Minimum characters to be added at front to make string palindrome ;; problems/minimum-characters-to-be-added-at-front-to-make-string-palindrome/1
+* Check for Anagrams
+LC: Valid Anagram ;; valid-anagram/
+GFG: Anagram ;; problems/anagram-1587115620/1
+* Count and Say Sequence
+LC: Count and Say ;; count-and-say/
+GFG: Decode the string / Count and say variant ;; problems/decode-the-string2444/1
+* Compare Version Numbers
+LC: Compare Version Numbers ;; compare-version-numbers/
+GFG: Version Numbers ;; problems/version-numbers1587115620/1
+
+## 13. Binary Trees
+* Inorder, Preorder, Postorder Traversals (Recursive & Iterative)
+> Inorder
+LC: LeetCode Inorder ;; binary-tree-inorder-traversal/
+GFG: GFG Inorder ;; problems/inorder-traversal/1
+> Preorder
+LC: LeetCode Preorder ;; binary-tree-preorder-traversal/
+GFG: GFG Preorder ;; problems/preorder-traversal/1
+> Postorder
+LC: LeetCode Postorder ;; binary-tree-postorder-traversal/
+GFG: GFG Postorder ;; problems/postorder-traversal/1
+* Morris Traversal (Inorder, Preorder, Postorder)
+> Morris Inorder
+LC: LeetCode Inorder ;; binary-tree-inorder-traversal/
+GFG: GFG Morris Inorder ;; inorder-tree-traversal-without-recursion-and-without-stack/
+> Morris Preorder
+LC: LeetCode Preorder ;; binary-tree-preorder-traversal/
+GFG: GFG Morris Preorder ;; morris-traversal-for-preorder/
+* Left, Right, Bottom, Top Views
+> Left View
+LC: LeetCode Variant ;; binary-tree-right-side-view/
+GFG: GFG Left View ;; problems/left-view-of-binary-tree/1
+> Right View
+LC: LeetCode Right View ;; binary-tree-right-side-view/
+GFG: GFG Right View ;; problems/right-view-of-binary-tree/1
+> Top View
+LC: LeetCode Variant ;; vertical-order-traversal-of-a-binary-tree/
+GFG: GFG Top View ;; problems/top-view-of-binary-tree/1
+> Bottom View
+LC: LeetCode Variant ;; vertical-order-traversal-of-a-binary-tree/
+GFG: GFG Bottom View ;; problems/bottom-view-of-binary-tree/1
+* In, Pre, Post Order Traversals in One Traversal
+LC: Binary Tree Postorder Traversal ;; binary-tree-postorder-traversal/
+GFG: All in One Traversal ;; preorder-postorder-and-inorder-traversal-of-a-binary-tree-in-a-single-traversal/
+* Vertical Order Traversal
+LC: Vertical Order Traversal of a Binary Tree ;; vertical-order-traversal-of-a-binary-tree/
+GFG: Print a Binary Tree in Vertical Order ;; problems/print-a-binary-tree-in-vertical-order/1
+* Print Root to Leaf Path
+LC: Binary Tree Paths ;; binary-tree-paths/
+GFG: Root to Leaf Paths ;; problems/root-to-leaf-paths/1
+* Max Width of Binary Tree
+LC: Maximum Width of Binary Tree ;; maximum-width-of-binary-tree/
+GFG: Maximum width of a tree ;; problems/maximum-width-of-tree/1
+* Level Order Traversals
+LC: Binary Tree Level Order Traversal ;; binary-tree-level-order-traversal/
+GFG: Level order traversal ;; problems/level-order-traversal/1
+* Height / Maximum Depth
+LC: Maximum Depth of Binary Tree ;; maximum-depth-of-binary-tree/
+GFG: Height of Binary Tree ;; problems/height-of-binary-tree/1
+* Diameter of Binary Tree
+LC: Diameter of Binary Tree ;; diameter-of-binary-tree/
+GFG: Diameter of a Binary Tree ;; problems/diameter-of-binary-tree/1
+* Check for Height Balanced
+LC: Balanced Binary Tree ;; balanced-binary-tree/
+GFG: Check for Balanced Tree ;; problems/check-for-balanced-tree/1
+* Lowest Common Ancestor (LCA)
+LC: Lowest Common Ancestor of a Binary Tree ;; lowest-common-ancestor-of-a-binary-tree/
+GFG: Lowest Common Ancestor in a Binary Tree ;; problems/lowest-common-ancestor-in-a-binary-tree/1
+* Check Identical Trees
+LC: Same Tree ;; same-tree/
+GFG: Determine if Two Trees are Identical ;; problems/determine-if-two-trees-are-identical/1
+* Zig Zag Level Order / Spiral Form
+LC: Binary Tree Zigzag Level Order Traversal ;; binary-tree-zigzag-level-order-traversal/
+GFG: Level order traversal in spiral form ;; problems/level-order-traversal-in-spiral-form/1
+* Boundary Traversal
+LC: Vertical Order Traversal Variant ;; vertical-order-traversal-of-a-binary-tree/
+GFG: Boundary Traversal of binary tree ;; problems/boundary-traversal-of-binary-tree/1
+* Max Sum Path
+LC: Binary Tree Maximum Path Sum ;; binary-tree-maximum-path-sum/
+GFG: Maximum Path Sum from any node ;; problems/maximum-path-sum-from-any-node/1
+* Check for Symmetrical Binary Tree
+LC: Symmetric Tree ;; symmetric-tree/
+GFG: Symmetric Tree ;; problems/symmetric-tree/1
+* Mirror of Itself or Not
+LC: Invert Binary Tree ;; invert-binary-tree/
+GFG: Mirror Tree ;; problems/mirror-tree/1
+* Flatten a Binary Tree to LL
+LC: Flatten Binary Tree to Linked List ;; flatten-binary-tree-to-linked-list/
+GFG: Flatten binary tree to linked list ;; problems/flatten-binary-tree-to-linked-list/1
+* Children Sum Property
+LC: Cousins in Binary Tree Variant ;; cousins-in-binary-tree/
+GFG: Children Sum Parent ;; problems/children-sum-parent/1
+* In + Pre Order to Unique Binary Tree
+LC: Construct Binary Tree from Preorder and Inorder Traversal ;; construct-binary-tree-from-preorder-and-inorder-traversal/
+GFG: Build Tree from Inorder and Preorder ;; problems/construct-tree-1/1
+* In + Post Order to Unique Binary Tree
+LC: Construct Binary Tree from Inorder and Postorder Traversal ;; construct-binary-tree-from-inorder-and-postorder-traversal/
+GFG: Tree from Inorder and Postorder ;; problems/tree-from-inorder-and-postorder/1
+
+## 14. Binary Search Trees (BST)
+* Check if a BT is a BST
+LC: Validate Binary Search Tree ;; validate-binary-search-tree/
+GFG: Check for BST ;; problems/check-for-bst/1
+* Search in BST
+LC: Search in a Binary Search Tree ;; search-in-a-binary-search-tree/
+GFG: Search a node in BST ;; problems/search-a-node-in-bst/1
+* Sorted Array to BST
+LC: Convert Sorted Array to Binary Search Tree ;; convert-sorted-array-to-binary-search-tree/
+GFG: Array to BST ;; problems/array-to-bst2316/1
+* Connect Nodes at Same Level in a BT
+LC: Populating Next Right Pointers in Each Node ;; populating-next-right-pointers-in-each-node/
+GFG: Connect Nodes at Same Level ;; problems/connect-nodes-at-same-level/1
+* Construct BST from Preorder Traversal
+LC: Construct Binary Search Tree from Preorder Traversal ;; construct-binary-search-tree-from-preorder-traversal/
+GFG: Preorder to Postorder / BST ;; problems/preorder-to-postorder4423/1
+* LCA in a BST
+LC: Lowest Common Ancestor of a Binary Search Tree ;; lowest-common-ancestor-of-a-binary-search-tree/
+GFG: Lowest Common Ancestor in a BST ;; problems/lowest-common-ancestor-in-a-bst/1
+* Inorder Successor / Predecessor in a BST
+LC: Inorder Successor in BST ;; inorder-successor-in-bst/ ;; Premium
+GFG: Predecessor and Successor ;; problems/predecessor-and-successor/1
+* Floor in a BST
+LC: Closest Binary Search Tree Value ;; closest-binary-search-tree-value/ ;; Premium
+GFG: Floor in BST ;; problems/floor-in-bst/1
+* Ceil in a BST
+LC: Closest Binary Search Tree Value ;; closest-binary-search-tree-value/ ;; Premium
+GFG: Implement Ceil in BST ;; problems/implement-ceil-in-bst/1
+* Kth Smallest in BST
+LC: Kth Smallest Element in a BST ;; kth-smallest-element-in-a-bst/
+GFG: Find k-th smallest element in BST ;; problems/find-kth-smallest-element-in-bst/1
+* Kth Largest in BST
+LC: Kth Largest Element in a BST ;; kth-largest-element-in-a-bst/ ;; Premium
+GFG: Kth largest element in BST ;; problems/k-th-largest-element-in-bst/1
+* Check for Pairs with Given Sum in BST
+LC: Two Sum IV - Input is a BST ;; two-sum-iv-input-is-a-bst/
+GFG: Find a pair with given target in BST ;; problems/find-a-pair-with-given-target-in-bst/1
+* BST Inorder Iterator
+LC: Binary Search Tree Iterator ;; binary-search-tree-iterator/
+GFG: BST Iterator ;; problems/bst-iterator/1
+* Size of Largest BST in a BT
+LC: Largest BST Subtree ;; largest-bst-subtree/ ;; Premium
+GFG: Largest BST ;; problems/largest-bst/1
+
+## 15. Miscellaneous Binary Trees & Stream Problems
+* Serialize and Deserialize a BT
+LC: Serialize and Deserialize Binary Tree ;; serialize-and-deserialize-binary-tree/
+GFG: Serialize and Deserialize a Binary Tree ;; problems/serialize-and-deserialize-binary-tree/1
+* BT to DLL
+LC: Flatten Binary Tree to Linked List Variant ;; flatten-binary-tree-to-linked-list/
+GFG: Binary Tree to DLL ;; problems/binary-tree-to-dll/1
+* Median in a Stream of Integers
+LC: Find Median from Data Stream ;; find-median-from-data-stream/
+GFG: Find median in a stream ;; problems/find-median-in-a-stream-1587115620/1
+* Kth Largest in a Stream
+LC: Kth Largest Element in a Stream ;; kth-largest-element-in-a-stream/
+GFG: Kth largest element in a stream ;; problems/kth-largest-element-in-a-stream2220/1
+* Count Distinct Elements in a Window of Size K
+LC: Distinct Numbers in Each Subarray ;; distinct-numbers-in-each-subarray/ ;; Premium
+GFG: Count distinct elements in every window ;; problems/count-distinct-elements-in-every-window/1
+* Kth Largest in an Array
+LC: Kth Largest Element in an Array ;; kth-largest-element-in-an-array/
+GFG: Kth largest element ;; problems/kth-largest-element4219/1
+* Flood Fill Algo
+LC: Flood Fill ;; flood-fill/
+GFG: Flood fill algorithm ;; problems/flood-fill-algorithm1856/1
+
+## 16. Graphs
+* Clone a Graph
+LC: Clone Graph ;; clone-graph/
+GFG: Clone graph ;; problems/clone-graph/1
+* DFS
+LC: Clone Graph Variant ;; clone-graph/
+GFG: DFS of Graph ;; problems/depth-first-traversal-for-a-graph/1
+* BFS
+LC: Shortest Path in Binary Matrix ;; shortest-path-in-binary-matrix/
+GFG: BFS of graph ;; problems/bfs-traversal-of-graph/1
+* Cycle Detection in Undirected Graph (BFS & DFS)
+LC: Graph Valid Tree ;; graph-valid-tree/ ;; Premium
+GFG: Detect cycle in an undirected graph ;; problems/detect-cycle-in-an-undirected-graph/1
+* Cycle Detection in Directed Graph (DFS)
+LC: Course Schedule ;; course-schedule/
+GFG: Detect cycle in a directed graph ;; problems/detect-cycle-in-a-directed-graph/1
+* Find Eventual Safe Nodes
+LC: Find Eventual Safe States ;; find-eventual-safe-states/
+GFG: Eventual Safe States ;; problems/eventual-safe-states/1
+* Topo Sort (DFS & BFS)
+> Topo Sort DFS
+LC: LeetCode Course Schedule II ;; course-schedule-ii/
+GFG: GFG Topological Sort ;; problems/topological-sort/1
+> Topo Sort BFS (Kahn's)
+LC: LeetCode Course Schedule II ;; course-schedule-ii/
+GFG: GFG Alien Dictionary ;; problems/alien-dictionary/1
+* Word Ladder - I, II
+> Word Ladder I
+LC: LeetCode Word Ladder I ;; word-ladder/
+GFG: GFG Word Ladder I ;; problems/word-ladder/1
+> Word Ladder II
+LC: LeetCode Word Ladder II ;; word-ladder-ii/
+GFG: GFG Word Ladder II ;; problems/word-ladder-ii/1
+* Number of Islands - I, II
+> Number of Islands I
+LC: LeetCode Islands I ;; number-of-islands/
+GFG: GFG Islands I ;; problems/find-the-number-of-islands/1
+> Number of Islands II
+LC: LeetCode Islands II ;; number-of-islands-ii/ ;; Premium
+GFG: GFG Islands II ;; problems/number-of-islands-set-2/1
+* Distinct Islands
+LC: Number of Distinct Islands ;; number-of-distinct-islands/ ;; Premium
+GFG: Number of Distinct Islands ;; problems/number-of-distinct-islands/1
+* Bipartite Graph (BFS & DFS)
+LC: Is Graph Bipartite? ;; is-graph-bipartite/
+GFG: Bipartite Graph ;; problems/bipartite-graph/1
+* Strongly Connected Components
+LC: Critical Connections in a Network ;; critical-connections-in-a-network/
+GFG: Strongly Connected Components (Kosaraju's) ;; problems/strongly-connected-components-kosarajus-algo/1
+* Find Bridges in a Graph
+LC: Critical Connections in a Network ;; critical-connections-in-a-network/
+GFG: Bridges in a graph ;; problems/bridge-edge-in-graph/1
+* Articulation Point in a Graph
+LC: Critical Connections Variant ;; critical-connections-in-a-network/
+GFG: Articulation Point - I ;; problems/articulation-point-1/1
+* Dijkstra Algorithm
+LC: Network Delay Time ;; network-delay-time/
+GFG: Dijkstra Algorithm ;; problems/implementing-dijkstra-set-1-adjacency-matrix/1
+* Bellman Ford
+LC: Cheapest Flights Within K Stops ;; cheapest-flights-within-k-stops/
+GFG: Bellman-Ford ;; problems/distance-from-the-source-bellman-ford-algorithm/1
+* Floyd Warshall
+LC: Find the City With the Smallest Number of Neighbors ;; find-the-city-with-the-smallest-number-of-neighbors-at-a-threshold-distance/
+GFG: Floyd Warshall ;; problems/implementing-floyd-warshall2042/1
+* MST - Prim's Algorithm
+LC: Min Cost to Connect All Points ;; min-cost-to-connect-all-points/
+GFG: Minimum Spanning Tree (Prim's) ;; problems/minimum-spanning-tree/1
+* MST - Kruskal's Algorithm
+LC: Min Cost to Connect All Points ;; min-cost-to-connect-all-points/
+GFG: Minimum Spanning Tree (Kruskal's) ;; problems/minimum-spanning-tree/1
+
+## 17. Dynamic Programming (DP)
+* Maximum Product Subarray
+LC: Maximum Product Subarray ;; maximum-product-subarray/
+GFG: Maximum Product Subarray ;; problems/maximum-product-subarray3604/1
+* Longest Increasing Subsequence (LIS)
+LC: Longest Increasing Subsequence ;; longest-increasing-subsequence/
+GFG: Longest Increasing Subsequence ;; problems/longest-increasing-subsequence-1587115620/1
+* Print LIS
+LC: LIS Print Variant ;; longest-increasing-subsequence/
+GFG: Printing Longest Increasing Subsequence ;; problems/printing-longest-increasing-subsequence/1
+* Longest Common Subsequence (LCS)
+LC: Longest Common Subsequence ;; longest-common-subsequence/
+GFG: Longest Common Subsequence ;; problems/longest-common-subsequence-1587115620/1
+* 0-1 Knapsack
+LC: Partition Equal Subset Sum Variant ;; partition-equal-subset-sum/
+GFG: 0 - 1 Knapsack Problem ;; problems/0-1-knapsack-problem0945/1
+* Edit Distance
+LC: Edit Distance ;; edit-distance/
+GFG: Edit Distance ;; problems/edit-distance3702/1
+* Max Sum Increasing Subsequence
+LC: Maximum Subarray Variant ;; maximum-subarray/
+GFG: Maximum sum increasing subsequence ;; problems/maximum-sum-increasing-subsequence4749/1
+* Matrix Chain Multiplication (MCM)
+LC: Minimum Cost to Cut a Stick ;; minimum-cost-to-cut-a-stick/
+GFG: Matrix Chain Multiplication ;; problems/matrix-chain-multiplication5248/1
+* Min Sum Path in a Grid
+LC: Minimum Path Sum ;; minimum-path-sum/
+GFG: Minimum Cost Path ;; problems/path-in-matrix3805/1
+* Coin Change
+LC: Coin Change ;; coin-change/
+GFG: Number of Coins ;; problems/number-of-coins1827/1
+* Subset Sum
+LC: Partition Equal Subset Sum ;; partition-equal-subset-sum/
+GFG: Subset Sum Problem ;; problems/subset-sum-problem-1595611562/1
+* Rod Cutting
+LC: Integer Break ;; integer-break/
+GFG: Rod Cutting ;; problems/rod-cutting0840/1
+* Egg Dropping
+LC: Super Egg Drop ;; super-egg-drop/
+GFG: Egg Dropping Puzzle ;; problems/egg-dropping-puzzle-1587115620/1
+* Word Break
+LC: Word Break ;; word-break/
+GFG: Word Break ;; problems/word-break1352/1
+* Palindrome Partitioning
+LC: Palindrome Partitioning II ;; palindrome-partitioning-ii/
+GFG: Palindromic Partitioning ;; problems/palindromic-patitioning4845/1
+* Job Sequencing Problem
+LC: Maximum Profit in Job Scheduling ;; maximum-profit-in-job-scheduling/
+GFG: Job Sequencing Problem ;; problems/job-sequencing-problem-1587115620/1
+
+## 18. Trie
+* Implement Trie - I, II
+> Trie I
+LC: LeetCode Trie I ;; implement-trie-prefix-tree/
+GFG: GFG Trie I ;; problems/trie-insert-and-search0657/1
+> Trie II
+LC: LeetCode Trie II ;; implement-trie-prefix-tree/
+GFG: GFG Trie II ;; problems/phone-directory4628/1
+* Longest Common Prefix
+LC: Longest Common Prefix ;; longest-common-prefix/
+GFG: Longest Common Prefix in an Array ;; problems/longest-common-prefix-in-an-array5129/1
+* Longest Complete String
+LC: Longest Word in Dictionary ;; longest-word-in-dictionary/
+GFG: Longest Prefix Matching ;; problems/longest-prefix-matching--170647/1
+* Count Distinct Substrings
+LC: Distinct Subsequences ;; distinct-subsequences/ ;; Variant
+GFG: Count of distinct substrings ;; problems/count-of-distinct-substrings/1
+* Power Set
+LC: Subsets ;; subsets/
+GFG: Power Set ;; problems/power-set4302/1
+* Max XOR of Two Numbers in an Array
+LC: Maximum XOR of Two Numbers in an Array ;; maximum-xor-of-two-numbers-in-an-array/
+GFG: Maximum XOR of two numbers in an array ;; problems/maximum-xor-of-two-numbers-in-an-array/1
+* Max XOR with an Element from Array (Online Queries)
+LC: Maximum XOR With an Element From Array ;; maximum-xor-with-an-element-from-array/
+GFG: Maximum XOR Queries ;; problems/maximum-xor-queries/1

@@ -1,0 +1,357 @@
+<h2 id="part-iv-cheat-sheets">Part IV — Cheat Sheets</h2>
+<p>Quick-reference tables, meant to be scanned in the minutes before an interview, not read start to end.</p>
+<h3 id="41-the-framework-one-more-time"><span class="sec-num">4.1</span>The framework, one more time</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Ask yourself</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Requirements</td>
+<td>Functional? Non-functional? Scale? What's explicitly out of scope?</td>
+</tr>
+<tr>
+<td>Estimation</td>
+<td>QPS, storage/year, bandwidth — three numbers, out loud</td>
+</tr>
+<tr>
+<td>High-level design</td>
+<td>Boxes and arrows: client → gateway → services → data layer</td>
+</tr>
+<tr>
+<td>Deep dive</td>
+<td>Whatever the interviewer leans toward — usually data model or the one hard trade-off</td>
+</tr>
+<tr>
+<td>Wrap-up</td>
+<td>Bottlenecks, SPOFs, what you'd add with more time</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-sql-vs-nosql-at-a-glance"><span class="sec-num">4.2</span>SQL vs. NoSQL at a glance</h3>
+<table>
+<thead>
+<tr>
+<th>Signal in the requirements</th>
+<th>Lean toward</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Must never lose a transaction" / financial ledger</td>
+<td>SQL (ACID)</td>
+</tr>
+<tr>
+<td>Schema will change often, nested data</td>
+<td>Document NoSQL</td>
+</tr>
+<tr>
+<td>Simple lookup at extreme write volume</td>
+<td>Key-value or wide-column</td>
+</tr>
+<tr>
+<td>"How are these entities connected" is the core query</td>
+<td>Graph</td>
+</tr>
+<tr>
+<td>Full-text/fuzzy search</td>
+<td>Text-search (Elasticsearch)</td>
+</tr>
+<tr>
+<td>Time-stamped sensor/metric data</td>
+<td>Time-series</td>
+</tr>
+</tbody>
+</table>
+<h3 id="43-load-balancing-algorithms"><span class="sec-num">4.3</span>Load balancing algorithms</h3>
+<table>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>One-line pick</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Round robin</td>
+<td>Uniform servers, uniform requests</td>
+</tr>
+<tr>
+<td>Weighted round robin</td>
+<td>Servers of different sizes</td>
+</tr>
+<tr>
+<td>Least connections</td>
+<td>Requests of wildly different duration</td>
+</tr>
+<tr>
+<td>Consistent hash</td>
+<td>Need session stickiness or cache-affinity</td>
+</tr>
+<tr>
+<td>Least bandwidth</td>
+<td>Streaming/bandwidth-heavy traffic</td>
+</tr>
+</tbody>
+</table>
+<h3 id="44-caching-strategies"><span class="sec-num">4.4</span>Caching strategies</h3>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Strategy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simple, resilient to cache failure</td>
+<td>Cache-aside</td>
+</tr>
+<tr>
+<td>Cache must never look stale after a write</td>
+<td>Write-through</td>
+</tr>
+<tr>
+<td>Writes must be fast, some loss risk tolerable</td>
+<td>Write-behind</td>
+</tr>
+<tr>
+<td>Full data set, hands-off population</td>
+<td>Read-through</td>
+</tr>
+<tr>
+<td>Cache full, pick what to evict</td>
+<td>LRU (default) or LFU (stable popularity)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="45-rate-limiting-algorithms"><span class="sec-num">4.5</span>Rate limiting algorithms</h3>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Algorithm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simple, low-stakes</td>
+<td>Fixed window</td>
+</tr>
+<tr>
+<td>Strict precision</td>
+<td>Sliding window log</td>
+</tr>
+<tr>
+<td>Scalable public API default</td>
+<td>Sliding window counter or token bucket</td>
+</tr>
+<tr>
+<td>Must smooth output to a constant rate</td>
+<td>Leaky bucket</td>
+</tr>
+</tbody>
+</table>
+<h3 id="46-consensus-coordination"><span class="sec-num">4.6</span>Consensus &amp; coordination</h3>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Reach for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Leader election / distributed locks / config</td>
+<td>ZooKeeper, etcd, Consul</td>
+</tr>
+<tr>
+<td>Understandable replicated log implementation</td>
+<td>Raft</td>
+</tr>
+<tr>
+<td>Historically foundational reference</td>
+<td>Paxos</td>
+</tr>
+</tbody>
+</table>
+<h3 id="47-cap-in-practice"><span class="sec-num">4.7</span>CAP in practice</h3>
+<table>
+<thead>
+<tr>
+<th>System</th>
+<th>Choice under partition</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Traditional single-node RDBMS</td>
+<td>CA (no partition to tolerate)</td>
+</tr>
+<tr>
+<td>MongoDB (default config)</td>
+<td>CP — rejects writes it can't safely replicate</td>
+</tr>
+<tr>
+<td>Cassandra, DynamoDB</td>
+<td>AP — answers with best-available data</td>
+</tr>
+<tr>
+<td>DNS</td>
+<td>AP — a stale answer beats no answer</td>
+</tr>
+</tbody>
+</table>
+<h3 id="48-sharding-strategies"><span class="sec-num">4.8</span>Sharding strategies</h3>
+<table>
+<thead>
+<tr>
+<th>Need</th>
+<th>Strategy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Even distribution, can tolerate resharding cost</td>
+<td>Key/hash-based</td>
+</tr>
+<tr>
+<td>Efficient range queries</td>
+<td>Range-based</td>
+</tr>
+<tr>
+<td>Maximum rebalancing flexibility</td>
+<td>Directory-based</td>
+</tr>
+<tr>
+<td>Isolate hot/critical columns</td>
+<td>Vertical</td>
+</tr>
+<tr>
+<td>Minimize reshuffling on resize</td>
+<td>Consistent hashing (on top of hash-based)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="49-if-the-question-needs-x-reach-for-y"><span class="sec-num">4.9</span>"If the question needs X, reach for Y"</h3>
+<table>
+<thead>
+<tr>
+<th>The requirement says...</th>
+<th>Reach for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>"Real-time, bidirectional"</td>
+<td>WebSocket</td>
+</tr>
+<tr>
+<td>"Stream updates to the client, one direction"</td>
+<td>Server-Sent Events</td>
+</tr>
+<tr>
+<td>"Exactly-once side effects despite retries"</td>
+<td>Idempotency key + dedupe table</td>
+</tr>
+<tr>
+<td>"Multiple services, one atomic-feeling operation"</td>
+<td>Saga (choreography or orchestration)</td>
+</tr>
+<tr>
+<td>"Full audit trail / time travel"</td>
+<td>Event sourcing</td>
+</tr>
+<tr>
+<td>"Reads and writes have wildly different load"</td>
+<td>CQRS</td>
+</tr>
+<tr>
+<td>"Protect a downstream dependency from cascading failure"</td>
+<td>Circuit breaker</td>
+</tr>
+<tr>
+<td>"Find things near a location"</td>
+<td>Geohash / Quadtree / H3</td>
+</tr>
+<tr>
+<td>"Dedupe URLs across a huge, uncertain set"</td>
+<td>Bloom filter</td>
+</tr>
+<tr>
+<td>"One writer, many readers, minimize reshuffle on scale change"</td>
+<td>Consistent hashing</td>
+</tr>
+<tr>
+<td>"Ground an LLM's answer in our own data"</td>
+<td>RAG + vector DB</td>
+</tr>
+<tr>
+<td>"Update the DB and publish an event, atomically"</td>
+<td>Outbox pattern (+ CDC to relay it)</td>
+</tr>
+<tr>
+<td>"A lock must stay safe even if the holder pauses past its TTL"</td>
+<td>Fencing tokens</td>
+</tr>
+<tr>
+<td>"One key/record is getting way more traffic than the rest"</td>
+<td>Key salting + local cache + single-flight (the hot-key toolkit)</td>
+</tr>
+<tr>
+<td>"Many cache entries expiring at once is hammering the DB"</td>
+<td>Jittered TTLs (cache avalanche fix)</td>
+</tr>
+<tr>
+<td>"Approximate unique-count over a huge stream, memory-constrained"</td>
+<td>HyperLogLog</td>
+</tr>
+<tr>
+<td>"One slow dependency shouldn't exhaust resources shared with others"</td>
+<td>Bulkhead (isolated pools per dependency)</td>
+</tr>
+<tr>
+<td>"A counter is getting hammered by concurrent writes"</td>
+<td>Sharded counters, summed on read</td>
+</tr>
+</tbody>
+</table>
+<h3 id="410-numbers-worth-having-memorized"><span class="sec-num">4.10</span>Numbers worth having memorized</h3>
+<table>
+<thead>
+<tr>
+<th>Fact</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>99.9% uptime allows</td>
+<td>~8.7 hours downtime/year</td>
+</tr>
+<tr>
+<td>99.99% uptime allows</td>
+<td>~52 minutes downtime/year</td>
+</tr>
+<tr>
+<td>99.999% uptime allows</td>
+<td>~5 minutes downtime/year</td>
+</tr>
+<tr>
+<td>Seconds in a day / month / year</td>
+<td>~86,400 / ~2.6M / ~31.5M</td>
+</tr>
+<tr>
+<td>Memory vs. cross-continent network round trip</td>
+<td>Memory is roughly 1,000,000× faster</td>
+</tr>
+<tr>
+<td>A well-tuned single relational DB, rough QPS ceiling</td>
+<td>Low tens of thousands before sharding conversations start</td>
+</tr>
+</tbody>
+</table>
+<hr/>

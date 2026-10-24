@@ -1,0 +1,272 @@
+<h2 id="part-0-the-interview-itself">Part 0 — The Interview Itself</h2>
+<h3 id="01-whats-actually-being-graded"><span class="sd-slot" data-key="01-whats-actually-being-graded"></span><span class="sec-num">0.1</span>What's actually being graded</h3>
+<p>A system design interview is not a test of whether you can produce a correct architecture — there rarely is a single correct one. GeeksforGeeks' own framework material is blunt about this: <em>"There is no one-size-fits-all solution in system design."</em> Interviewers are grading four things, roughly in this order of importance:</p>
+<ol>
+<li><strong>Structured thinking under ambiguity.</strong> Do you ask clarifying questions before designing, or do you start drawing boxes immediately? Rushing to an answer without clarifying scope is explicitly called out as a red flag in interviewer training material.</li>
+<li><strong>Communication.</strong> Can you narrate trade-offs out loud, in real time, the way you'd explain a decision to a teammate? Staff-level bars especially reward this over textbook completeness.</li>
+<li><strong>Depth on demand.</strong> When the interviewer says "go deeper on the database," can you go three layers deeper than your initial box-and-arrow diagram?</li>
+<li><strong>Judgment about trade-offs.</strong> Every component you add costs something (latency, cost, operational complexity). Naming the cost is worth more than naming the component.</li>
+</ol>
+<p>You are expected to <strong>lead</strong> the interview — it's your design, your whiteboard, your pacing. The interviewer will stay quiet unless you ask.</p>
+<div class="sd-remarks-slot" data-key="01-whats-actually-being-graded"></div>
+<h3 id="02-the-end-to-end-framework"><span class="sd-slot" data-key="02-the-end-to-end-framework"></span><span class="sec-num">0.2</span>The end-to-end framework</h3>
+<p>Every major course converges on some variant of the same four movements. Grokking's original version calls it a step-by-step framework; Educative's newer edition names it <strong>RESHADED</strong> (Requirements → Estimation → Storage/data model → High-level design → Detailed design → Evaluate trade-offs → Distill); Hello Interview calls its version the <strong>Delivery Framework</strong>. They are the same shape:</p>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>What you do</th>
+<th>Time (45–50 min interview)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1. Requirements</strong></td>
+<td>Clarify scope, functional + non-functional requirements, state assumptions out loud</td>
+<td>5–10 min</td>
+</tr>
+<tr>
+<td><strong>2. Estimation</strong></td>
+<td>Back-of-envelope: scale, QPS, storage, bandwidth</td>
+<td>folded into step 1 or 3</td>
+</tr>
+<tr>
+<td><strong>3. High-Level Design</strong></td>
+<td>Draw the major components and how data flows between them</td>
+<td>10–15 min</td>
+</tr>
+<tr>
+<td><strong>4. Detailed Design</strong></td>
+<td>Deep-dive into 1–2 components the interviewer steers you toward</td>
+<td>15–25 min</td>
+</tr>
+<tr>
+<td><strong>5. Wrap-up</strong></td>
+<td>Bottlenecks, single points of failure, what you'd do with more time</td>
+<td>3–5 min</td>
+</tr>
+</tbody>
+</table>
+<pre class="mermaid">
+flowchart LR
+    A["1. Requirements<br/>Clarify scope + non-functionals"] --&gt; B["2. Estimation<br/>QPS, storage, bandwidth"]
+    B --&gt; C["3. High-Level Design<br/>Components + data flow"]
+    C --&gt; D["4. Detailed Design<br/>Deep-dive on demand"]
+    D --&gt; E["5. Wrap-up<br/>Bottlenecks + next steps"]
+</pre>
+<p><strong>A real requirements-gathering exchange</strong> (paraphrased from course interview transcripts) shows the rhythm:</p>
+<blockquote>
+<p><strong>Interviewer:</strong> Let's design Facebook.
+<strong>You:</strong> Which part or component?
+<strong>Interviewer:</strong> Let's design the feed.
+<strong>You:</strong> Should it contain photos and videos, or just text?
+<strong>Interviewer:</strong> Let's start simple — we can extend later.
+<strong>You:</strong> Should the feed be searchable? Real-time, or is some staleness acceptable?</p>
+</blockquote>
+<p>Notice the candidate never guesses. Each answer narrows scope before any design happens.</p>
+<div class="sd-remarks-slot" data-key="02-the-end-to-end-framework"></div>
+<h3 id="03-functional-vs-non-functional-requirements"><span class="sd-slot" data-key="03-functional-vs-non-functional-requirements"></span><span class="sec-num">0.3</span>Functional vs. non-functional requirements</h3>
+<ul>
+<li><strong>Functional requirements</strong> — what the system <em>does</em>: user-facing features and actions ("users can post a tweet," "users can search by hashtag").</li>
+<li><strong>Non-functional requirements</strong> — how well it does it: scale, latency, availability, consistency, security, cost. These usually decide your architecture more than the functional list does — a feed that must be "real-time for 500M users" implies a completely different design than one that tolerates a 10-second delay for 50,000 users.</li>
+<li><strong>Constraints</strong> — budget, team size, existing tech stack, timeline, legal/compliance limits.</li>
+</ul>
+<p><strong>Generic questions that unlock 90% of interviews</strong> (compiled from course frameworks):</p>
+<ul>
+<li>What's the scale — DAU/MAU, and how much data per user?</li>
+<li>Is this global, regional, or single-market?</li>
+<li>What's the expected growth rate over 1–3 years?</li>
+<li>Availability vs. consistency — which one bends when the network partitions?</li>
+<li>What's an acceptable latency for the core action?</li>
+<li>What's in scope for an MVP vs. a "nice to have" you'd flag and defer?</li>
+<li>Any compliance constraints — GDPR, HIPAA, PCI-DSS, data residency?</li>
+<li>Read-heavy or write-heavy? What's the read:write ratio?</li>
+</ul>
+<div class="sd-remarks-slot" data-key="03-functional-vs-non-functional-requirements"></div>
+<h3 id="04-back-of-the-envelope-estimation"><span class="sd-slot" data-key="04-back-of-the-envelope-estimation"></span><span class="sec-num">0.4</span>Back-of-the-envelope estimation</h3>
+<p>A back-of-envelope calculation is a rough, defensible estimate — not a precise one. The goal is to pick the right <em>class</em> of solution (single Postgres instance vs. a sharded cluster; a queue vs. a raw HTTP call), not to produce a number you'd bet money on. Talk through it out loud; a silent calculation is wasted signal.</p>
+<p><strong>Useful powers of 2 and time constants:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Approx.</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2^10</td>
+<td>~1 thousand (KB)</td>
+</tr>
+<tr>
+<td>2^20</td>
+<td>~1 million (MB)</td>
+</tr>
+<tr>
+<td>2^30</td>
+<td>~1 billion (GB)</td>
+</tr>
+<tr>
+<td>2^40</td>
+<td>~1 trillion (TB)</td>
+</tr>
+<tr>
+<td>Seconds in a day</td>
+<td>~86,400 (~10^5)</td>
+</tr>
+<tr>
+<td>Seconds in a month</td>
+<td>~2.6 million</td>
+</tr>
+<tr>
+<td>Seconds in a year</td>
+<td>~31.5 million (~3.15 × 10^7)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Worked example — IoT health-monitoring fleet</strong> (from course material, reproduced because the mechanics generalize to almost any "design a system that ingests X" problem):</p>
+<blockquote>
+<p><em>Scenario:</em> 1 million active cars, each emitting a telemetry event every 10 seconds. Dashboards need 1-minute granularity. Target read latency &lt; 50 ms.</p>
+<ol>
+<li><strong>Throughput:</strong> 1,000,000 cars ÷ 10 s = <strong>100,000 events/sec</strong> ingested.</li>
+<li><strong>Record size:</strong> id (4B) + attribute (8B) + value (4B) + timestamp (8B) ≈ <strong>25 bytes/event</strong>.</li>
+<li><strong>Ingestion rate:</strong> 25 B × 100,000/s = <strong>2.5 MB/s</strong>.</li>
+<li><strong>1-year storage:</strong> 2.5 MB/s × ~31.5M s/year ≈ <strong>~79 TB/year</strong> (round to ~100 TB for headroom).</li>
+<li><strong>5-year storage:</strong> ≈ <strong>500 TB</strong>, before compression or downsampling.</li>
+<li>Now the follow-ups write themselves: <em>Is one server enough for 100K req/s? What does this do to the storage layer? Do you downsample old data?</em></li>
+</ol>
+</blockquote>
+<p>This is the whole game: convert a vague prompt into three or four numbers, then let the numbers argue for a design.</p>
+<p><strong>Rules of thumb for interpreting your own numbers:</strong></p>
+<ul>
+<li>L1 cache &lt; L2 cache &lt; RAM &lt; SSD &lt; spinning disk &lt; network, in both speed and typical cost per GB — cheapest last.</li>
+<li>A single well-tuned relational database can usually handle low tens of thousands of QPS before you need to shard.</li>
+<li>If your QPS estimate is in the hundreds, you probably don't need to shard, queue, or introduce Kafka — resist the urge to over-architect a small problem.</li>
+<li>Round aggressively. "About 100K QPS" beats a false-precision "94,608 QPS" — the interview rewards the right order of magnitude, not decimal accuracy.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="04-back-of-the-envelope-estimation"></div>
+<h3 id="05-latency-numbers-every-candidate-should-know"><span class="sd-slot" data-key="05-latency-numbers-every-candidate-should-know"></span><span class="sec-num">0.5</span>Latency numbers every candidate should know</h3>
+<p>Originally compiled by Jeff Dean (Google) and popularized by Peter Norvig — still the reference every course cites, because the <em>relative</em> gaps (not the absolute numbers) are what matter for reasoning about where to put a cache.</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Latency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L1 cache reference</td>
+<td>0.5 ns</td>
+</tr>
+<tr>
+<td>Branch mispredict</td>
+<td>5 ns</td>
+</tr>
+<tr>
+<td>L2 cache reference</td>
+<td>7 ns</td>
+</tr>
+<tr>
+<td>Mutex lock/unlock</td>
+<td>25 ns</td>
+</tr>
+<tr>
+<td>Main memory (RAM) reference</td>
+<td>100 ns</td>
+</tr>
+<tr>
+<td>Compress 1 KB with a fast compressor</td>
+<td>3 μs</td>
+</tr>
+<tr>
+<td>Send 1 KB over a 1 Gbps network</td>
+<td>10 μs</td>
+</tr>
+<tr>
+<td>Read 4 KB randomly from SSD</td>
+<td>150 μs</td>
+</tr>
+<tr>
+<td>Read 1 MB sequentially from RAM</td>
+<td>250 μs</td>
+</tr>
+<tr>
+<td>Round trip within same data center</td>
+<td>500 μs</td>
+</tr>
+<tr>
+<td>Read 1 MB sequentially from SSD</td>
+<td>1 ms</td>
+</tr>
+<tr>
+<td>Disk seek (spinning disk)</td>
+<td>10 ms</td>
+</tr>
+<tr>
+<td>Read 1 MB sequentially from spinning disk</td>
+<td>20 ms</td>
+</tr>
+<tr>
+<td>Send packet CA → Netherlands → CA</td>
+<td>150 ms</td>
+</tr>
+</tbody>
+</table>
+<p><strong>2026 addition — LLM inference latency</strong> (increasingly asked about once a design touches an AI feature):</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Typical latency</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Frontier LLM, time to first token (short prompt, no cache)</td>
+<td>~1 s</td>
+</tr>
+<tr>
+<td>Frontier LLM, short response (~100 output tokens)</td>
+<td>~3 s</td>
+</tr>
+<tr>
+<td>Frontier LLM, long-context prefill (~100K input tokens, uncached)</td>
+<td>~10 s</td>
+</tr>
+<tr>
+<td>Frontier LLM, extended-reasoning response</td>
+<td>~30 s</td>
+</tr>
+</tbody>
+</table>
+<p><strong>What to do with this table:</strong> memory is ~100,000× faster than a network round trip to another continent, and roughly 200,000× faster than a spinning-disk seek. That's the entire justification for caching, CDNs, and read replicas in one sentence — every layer you add between a user and a disk in another region is there to avoid the bottom three rows of this table.</p>
+<div class="sd-remarks-slot" data-key="05-latency-numbers-every-candidate-should-know"></div>
+<h3 id="06-the-excellence-checklist-what-separates-hire-from-no-hire"><span class="sd-slot" data-key="06-the-excellence-checklist-what-separates-hire-from-no-hire"></span><span class="sec-num">0.6</span>The excellence checklist — what separates hire from no-hire</h3>
+<p>Nine habits, cross-checked across multiple interviewer-side training materials, that consistently distinguish a strong signal from a merely-passing one:</p>
+<ol>
+<li><strong>State assumptions out loud</strong> and revisit them when the scale changes — "Assuming 10K QPS; if it were 1M, I'd shard here instead."</li>
+<li><strong>Quantify before and after every design choice</strong> — a decision without a number attached is an opinion, not an engineering judgment.</li>
+<li><strong>Name 2–3 alternatives for every major decision</strong>, then pick one and justify the pick — not just "I'll use Kafka," but "queue vs. stream vs. direct call, and here's why streaming wins here."</li>
+<li><strong>Drive the conversation</strong> — "The hardest part here is X — shall we go deep on that?" rather than waiting to be steered.</li>
+<li><strong>Discuss failure modes without being asked:</strong> node death, network partition, hot keys, thundering herd, poison messages, clock skew, replication lag.</li>
+<li><strong>Know the hot-key problem cold</strong> — it recurs in every cache and KV-store answer (Section 2.5).</li>
+<li><strong>Know the thundering-herd fixes cold</strong> — jittered TTLs, staggered refresh, mutex/single-flight, stale-while-revalidate (Section 2.5).</li>
+<li><strong>End with monitoring and SLOs for your own design</strong> — "p99 &lt; 200ms, 99.95% availability, dashboards on error rate and queue depth."</li>
+<li><strong>If stuck, don't freeze:</strong> re-anchor on requirements, draw boxes-and-arrows, verbalize trade-offs. Partial structure beats silence.</li>
+</ol>
+<p><strong>A longer list of anti-patterns worth actively avoiding</strong>, several of which are subtle enough that candidates repeat them without noticing:</p>
+<ul>
+<li>Starting with technology names before requirements exist ("I'll use Kubernetes and Kafka!" said before anyone asked what the system does).</li>
+<li>Designing before clarifying scope, or silently assuming scope instead of stating it.</li>
+<li>Producing a design with no numbers anywhere in it.</li>
+<li>Claiming "exactly-once" delivery as a casual, unqualified fact — say <em>at-least-once plus idempotent processing</em> instead (Section 2.7).</li>
+<li>Saying the CAP theorem means a system "picks two of three" permanently — it describes behavior <strong>during a partition</strong> specifically; outside a partition, the real everyday trade-off is latency vs. consistency (Section 2.7's PACELC discussion).</li>
+<li>Treating a cache as a database with slightly different syntax, without qualifying its weaker durability guarantees.</li>
+<li>Reaching for microservices, Kafka, or sharding reflexively, without a requirement that actually demands them — see Section 0.4's rule of thumb about not over-architecting a small problem.</li>
+<li>Treating "eventual consistency" as if it meant "data loss" — it means <em>bounded, temporary staleness</em>, not lost writes.</li>
+<li>Assuming retries are always safe by default, rather than checking idempotency first (Section 2.7).</li>
+<li>Explaining every possible feature instead of the two or three that are actually hard.</li>
+</ul>
+<hr/>
+<div class="sd-remarks-slot" data-key="06-the-excellence-checklist-what-separates-hire-from-no-hire"></div>

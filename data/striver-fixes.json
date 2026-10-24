@@ -1,0 +1,181 @@
+{
+  "fixes": [
+    {
+      "id": "B1",
+      "where": "Bit Manipulation › #5 Single Number-I",
+      "what": "GFG link was the sorted-array version, replaced by the XOR \"number occurring odd number of times\" article",
+      "before": "https://www.geeksforgeeks.org/find-the-element-that-appears-once-in-sorted-array/",
+      "after": "https://www.geeksforgeeks.org/find-the-number-occurring-odd-number-of-times/"
+    },
+    {
+      "id": "B2",
+      "where": "Bit Manipulation › #8 XOR of Numbers in a Given Range",
+      "what": "LeetCode link was a different problem (Find the XOR of Numbers Which Appear Twice); LeetCode has no range-XOR problem",
+      "before": "https://leetcode.com/problems/find-the-xor-of-numbers-which-appear-twice/",
+      "after": "N/A"
+    },
+    {
+      "id": "G1",
+      "where": "Graph › #24 Course Schedule I & II",
+      "what": "Only part I was linked; split into two variants and added the LeetCode link for part II",
+      "before": "LC https://leetcode.com/problems/course-schedule/ | GFG https://www.geeksforgeeks.org/problems/course-schedule/1",
+      "after": "I: same links | II: LC https://leetcode.com/problems/course-schedule-ii/"
+    },
+    {
+      "id": "G2",
+      "where": "Graph › #25",
+      "what": "Title named a different problem; both links already pointed to Alien Dictionary",
+      "before": "Find First Non-Repeating Character (Alien Dictionary)",
+      "after": "Alien Dictionary"
+    },
+    {
+      "id": "G3",
+      "where": "Graph › #46 Kosaraju's Algorithm",
+      "what": "LeetCode link was Maximum Number of Fish in a Grid (unrelated)",
+      "before": "https://leetcode.com/problems/maximum-number-of-fish-in-a-grid/",
+      "after": "N/A"
+    },
+    {
+      "id": "D1",
+      "where": "DP › #3 Frog Jump (DP-3)",
+      "what": "GFG link was a 4-direction grid shortest-path article; replaced by GFG \"Geek Jump\" (the Frog Jump problem)",
+      "before": "https://www.geeksforgeeks.org/minimum-cost-path-left-right-bottom-and-top-moves-allowed/",
+      "after": "https://www.geeksforgeeks.org/problems/geek-jump/1"
+    },
+    {
+      "id": "D2",
+      "where": "DP › #19",
+      "what": "Title had a stray \"Assign Cookies /\" prefix; links are Target Sum",
+      "before": "Assign Cookies / Target Sum",
+      "after": "Target Sum"
+    },
+    {
+      "id": "D3",
+      "where": "DP › #21",
+      "what": "Title mixed two problems; links are Minimum Coins",
+      "before": "Target Sum / Minimum Coins",
+      "after": "Minimum Coins"
+    },
+    {
+      "id": "D4",
+      "where": "DP › #35 Best Time to Buy and Sell Stock I, II, III, IV",
+      "what": "Only III was linked; split into four variants with the LeetCode link for each part (GFG stays on III)",
+      "before": "LC https://leetcode.com/problems/best-time-to-buy-and-sell-stock-iii/ | GFG https://www.geeksforgeeks.org/maximum-profit-by-buying-and-selling-a-share-at-most-twice/",
+      "after": "I, II, III, IV variants each with its own LeetCode link"
+    },
+    {
+      "id": "D5",
+      "where": "DP › #47 Evaluate Boolean Expression to True",
+      "what": "LeetCode link was Parsing a Boolean Expression (a different problem); LeetCode has no Boolean Parenthesization",
+      "before": "https://leetcode.com/problems/parsing-a-boolean-expression/",
+      "after": "N/A"
+    },
+    {
+      "id": "T1",
+      "where": "Trie › #2 Implement Trie II",
+      "what": "LeetCode link was Trie I; replaced by Implement Trie II (Prefix Tree)",
+      "before": "https://leetcode.com/problems/implement-trie-prefix-tree/",
+      "after": "https://leetcode.com/problems/implement-trie-ii-prefix-tree/"
+    },
+    {
+      "id": "S1",
+      "where": "DSA › 4. Number of Subarrays with Given XOR K",
+      "what": "LeetCode link was Count the Number of Good Subarrays (unrelated to XOR)",
+      "before": "https://leetcode.com/problems/count-the-number-of-good-subarrays/",
+      "after": "N/A"
+    },
+    {
+      "id": "S2",
+      "where": "DSA › 7. Max Meetings in One Room",
+      "what": "LeetCode link was Meeting Rooms II, which is the Minimum Platforms problem",
+      "before": "https://leetcode.com/problems/meeting-rooms-ii/",
+      "after": "N/A"
+    },
+    {
+      "id": "S3",
+      "where": "DSA › 7. Minimum Platforms Required",
+      "what": "Primary LeetCode link should be Meeting Rooms II; Meeting Rooms III kept as the Variant link",
+      "before": "https://leetcode.com/problems/meeting-rooms-iii/",
+      "after": "https://leetcode.com/problems/meeting-rooms-ii/ (+ Meeting Rooms III kept as Variant)"
+    },
+    {
+      "id": "S4",
+      "where": "DSA › 11. Implement Stack › Using Array",
+      "what": "LeetCode link was the queue-based stack problem",
+      "before": "https://leetcode.com/problems/implement-stack-using-queues/",
+      "after": "N/A"
+    },
+    {
+      "id": "S5",
+      "where": "DSA › 11. Implement Queue › Using Array",
+      "what": "LeetCode link was the stack-based queue problem",
+      "before": "https://leetcode.com/problems/implement-queue-using-stacks/",
+      "after": "N/A"
+    },
+    {
+      "id": "S6",
+      "where": "DSA › 11. Sort a Stack Using Only Recursion",
+      "what": "LeetCode link was Evaluate Reverse Polish Notation (unrelated)",
+      "before": "https://leetcode.com/problems/evaluate-reverse-polish-notation/",
+      "after": "N/A"
+    },
+    {
+      "id": "S7",
+      "where": "DSA › 13. Boundary Traversal",
+      "what": "LeetCode link was Vertical Order Traversal; replaced by Boundary of Binary Tree",
+      "before": "https://leetcode.com/problems/vertical-order-traversal-of-a-binary-tree/",
+      "after": "https://leetcode.com/problems/boundary-of-binary-tree/"
+    },
+    {
+      "id": "S8",
+      "where": "DSA › 13. Children Sum Property",
+      "what": "LeetCode link was Cousins in Binary Tree (unrelated)",
+      "before": "https://leetcode.com/problems/cousins-in-binary-tree/",
+      "after": "N/A"
+    },
+    {
+      "id": "S9",
+      "where": "DSA › 16. Strongly Connected Components",
+      "what": "LeetCode link was Critical Connections (bridges), a different algorithm",
+      "before": "https://leetcode.com/problems/critical-connections-in-a-network/",
+      "after": "N/A"
+    },
+    {
+      "id": "S10",
+      "where": "DSA › 18. Count Distinct Substrings",
+      "what": "LeetCode link was Distinct Subsequences; replaced by Number of Distinct Substrings in a String",
+      "before": "https://leetcode.com/problems/distinct-subsequences/",
+      "after": "https://leetcode.com/problems/number-of-distinct-substrings-in-a-string/"
+    },
+    {
+      "id": "S11",
+      "where": "DSA › 18. Implement Trie › Trie I",
+      "what": "GFG slug typo (…0657); the verified GFG page is …0651",
+      "before": "https://www.geeksforgeeks.org/problems/trie-insert-and-search0657/1",
+      "after": "https://www.geeksforgeeks.org/problems/trie-insert-and-search0651/1"
+    },
+    {
+      "id": "S12",
+      "where": "DSA › 18. Implement Trie › Trie II",
+      "what": "LeetCode link was Trie I (now Implement Trie II); GFG link was Phone Directory, a different problem",
+      "before": "LC https://leetcode.com/problems/implement-trie-prefix-tree/ | GFG https://www.geeksforgeeks.org/problems/phone-directory4628/1",
+      "after": "LC https://leetcode.com/problems/implement-trie-ii-prefix-tree/ | GFG N/A"
+    }
+  ],
+  "additions": [
+    {
+      "what": "Number of Islands II: both GFG slugs kept on both pages",
+      "links": [
+        "https://www.geeksforgeeks.org/problems/number-of-islands-ii/1",
+        "https://www.geeksforgeeks.org/problems/number-of-islands-set-2/1"
+      ]
+    },
+    {
+      "what": "Longest Word With All Prefixes / Longest Complete String: both GFG slugs kept on both pages",
+      "links": [
+        "https://www.geeksforgeeks.org/problems/longest-string-in-dictionary--170647/1",
+        "https://www.geeksforgeeks.org/problems/longest-prefix-matching--170647/1"
+      ]
+    }
+  ]
+}

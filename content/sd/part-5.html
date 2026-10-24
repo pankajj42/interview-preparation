@@ -1,0 +1,66 @@
+<h2 id="part-v-study-plan-resources">Part V — Study Plan &amp; Resources</h2>
+<h3 id="51-an-8-week-plan"><span class="sd-slot" data-key="51-an-8-week-plan"></span><span class="sec-num">5.1</span>An 8-week plan</h3>
+<table>
+<thead>
+<tr>
+<th>Weeks</th>
+<th>Focus</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Part 0 (framework) + Part II, Sections 2.1–2.6 (architecture, APIs, networking, load balancing, data layer) — drill until you can explain each without notes</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Part II, Sections 2.7–2.11 (distributed systems, messaging, reliability, performance, consistency patterns)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Part II, Sections 2.12–2.16 (security, observability, infrastructure, AI systems, principles) + start Part I if your loop includes an LLD round</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Finish Part I (patterns + all four LLD case studies) if applicable; otherwise, start Group A case studies</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Case study Groups A–D, one per day, done as a timed 45-minute mock, not a read-through</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Case study Groups E–I, same timed format</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Mixed mock interviews — random topic, no prep time, 45 minutes, then self-critique against Part IV's checklists</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Company-specific practice (their known common questions), plus a final pass over Part IV cheat sheets</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The single highest-leverage habit across every course reviewed for this guide:</strong> practice out loud, on an actual whiteboard or tool like Excalidraw, against a timer — reading this guide builds recognition, but interviews test production under time pressure and live narration, which only repeated, timed practice actually builds.</p>
+<div class="sd-remarks-slot" data-key="51-an-8-week-plan"></div>
+<h3 id="52-where-this-guides-structure-came-from"><span class="sd-slot" data-key="52-where-this-guides-structure-came-from"></span><span class="sec-num">5.2</span>Where this guide's structure came from</h3>
+<p>Built from your GeeksforGeeks System Design course material, cross-referenced against:</p>
+<ul>
+<li><strong>System Design Interview — An Insider's Guide, Vol. 1</strong> (Alex Xu, ByteByteGo, 2nd edition) — read directly rather than referenced secondhand as of this pass; its 16 chapters map one-to-one onto Part 0's framework and thirteen of Part III's Group A/B/D case studies, and its exact chapter sequence confirmed the ordering this guide already followed.</li>
+<li><strong>Designing Data-Intensive Applications</strong> (Martin Kleppmann) — the single deepest text in this space, and the direct source for Section 2.18's transaction-isolation/concurrency-anomaly treatment, Section 2.19's encoding/schema-evolution treatment, and the replication-lag, secondary-index-partitioning, hash-index, star/snowflake-schema, total-order-broadcast, Byzantine-fault, and process-pause additions folded into Sections 2.6, 2.7, and 2.10.</li>
+<li><strong>Head First Design Patterns</strong> (Freeman &amp; Freeman, O'Reilly) — confirmed Part I's pattern catalog against its chapter list and appendix, and is the direct source of the "program to an interface," Law of Demeter, and Hollywood Principle additions in Section 1.3, plus the MVC compound-pattern note in Section 1.4.</li>
+<li><strong>Grokking the System Design Interview / Grokking Modern System Design Interview</strong> (Design Gurus / Educative) — the building-blocks-plus-case-studies structure this guide follows, including its 2026 additions (AI infrastructure, updated trade-offs coverage).</li>
+<li><strong>Hello Interview's "System Design in a Hurry"</strong> — the core-concepts-vs-case-studies split, and the emphasis on trade-off communication over memorized answers.</li>
+<li>Public engineering writing from Uber (H3), Netflix (Open Connect, Chaos Monkey), Apple (Find My), Bluesky/AT Protocol, and AWS (S3 durability model) for the Group G/H case studies specifically.</li>
+<li>A second pass cross-checked three independently-written prep guides you supplied against every section above — the gaps they surfaced (PACELC, the three named cache failure modes, fencing tokens, the Outbox/Inbox/CDC patterns, the Scale Cube, LSM trees, fifteen additional case studies including a distributed scheduler, monitoring/logging platforms, and a Redis-style distributed cache) are folded into the sections above rather than kept as a separate document.</li>
+<li><strong>Martin Kleppmann's <em>Designing Data-Intensive Applications</em></strong> and <strong>Google's SRE Book</strong>, both named explicitly enough in that second pass to cite directly — the former for the Redlock critique and consistency-model vocabulary in Section 2.7/2.11, the latter for the SLI/SLO/error-budget framing in Section 2.13.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="52-where-this-guides-structure-came-from"></div>
+<h3 id="53-practicing-beyond-this-guide"><span class="sd-slot" data-key="53-practicing-beyond-this-guide"></span><span class="sec-num">5.3</span>Practicing beyond this guide</h3>
+<ul>
+<li>Do at least a few mock interviews with another person (or a structured mock-interview platform) — self-assessment alone misses the communication half of the grade.</li>
+<li>After each practice round, explicitly write down which trade-off you didn't mention until prompted — that list is your real, personalized study plan, more useful than working through topics in a fixed order.</li>
+<li>Read one real engineering blog post a week from a company whose scale interests you (Uber, Netflix, Stripe, Discord, and Cloudflare all publish detailed, readable architecture writeups) — it's the fastest way to replace "textbook" answers with specific, credible detail an interviewer can tell you actually understand.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="53-practicing-beyond-this-guide"></div>

@@ -1,0 +1,709 @@
+<h2 id="part-i-low-level-design-lld">Part I — Low-Level Design (LLD)</h2>
+<p>LLD interviews (sometimes called "machine coding" or "OOD" rounds) hand you a real-world object — a parking garage, an elevator bank, a deck of cards — and ask you to model it in code: classes, interfaces, relationships, and enough working logic that a compiler wouldn't reject it. The bar is different from HLD: fewer moving distributed parts, far more scrutiny on whether your abstractions are <em>right</em>.</p>
+<h3 id="11-object-oriented-programming-foundations"><span class="sd-slot" data-key="11-object-oriented-programming-foundations"></span><span class="sec-num">1.1</span>Object-Oriented Programming Foundations</h3>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>What it means</th>
+<th>Interview-relevant nuance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Class vs. Object</strong></td>
+<td>A class is the blueprint; an object is an instantiated instance with actual state in memory.</td>
+<td>Be ready to explain this in one sentence — it's a genuine warm-up question.</td>
+</tr>
+<tr>
+<td><strong>Constructors</strong></td>
+<td>Special methods that initialize an object's state at creation time. A default (no-argument) constructor is provided implicitly if you declare none.</td>
+<td>Overloading constructors is a common way to offer multiple valid initialization paths.</td>
+</tr>
+<tr>
+<td><strong>Access modifiers</strong></td>
+<td><code>private</code> (class-only), <code>default</code>/package-private, <code>protected</code> (package + subclasses), <code>public</code> (everywhere).</td>
+<td>Interviewers watch whether you default to <code>public</code> out of laziness — over-exposing state is a real code-smell flag.</td>
+</tr>
+<tr>
+<td><strong>Method overloading</strong></td>
+<td>Same method name, different parameter lists, resolved at compile time.</td>
+<td>Contrast with <strong>overriding</strong>, which is runtime polymorphism via inheritance.</td>
+</tr>
+<tr>
+<td><strong>Encapsulation</strong></td>
+<td>Bundling data with the methods that operate on it, and hiding internal state behind a controlled interface (getters/setters, validation).</td>
+<td>The <em>reason</em> you encapsulate — reusability and preventing invalid state — matters more than the definition.</td>
+</tr>
+<tr>
+<td><strong>Abstraction</strong></td>
+<td>Exposing only essential behavior while hiding implementation detail, typically via abstract classes or interfaces.</td>
+<td>Abstract classes can hold partial implementation + state; interfaces (pre-Java 8 style) are pure contracts. Know when you'd choose one over the other: an abstract class when subclasses share code, an interface when unrelated classes need to promise the same capability.</td>
+</tr>
+<tr>
+<td><strong>Inheritance</strong></td>
+<td>A subclass acquires the fields/methods of a superclass. Types: single, multilevel, hierarchical, multiple (via interfaces in Java/C#), hybrid.</td>
+<td>Overused inheritance is a classic LLD anti-pattern — it's why "favor composition over inheritance" shows up in almost every pattern discussion below.</td>
+</tr>
+<tr>
+<td><strong>Association, Aggregation, Composition</strong></td>
+<td><strong>Association</strong> — two classes relate but have independent lifecycles (a <code>Teacher</code> and a <code>Student</code>). <strong>Aggregation</strong> — a "has-a" whole/part relationship where the part can outlive the whole (a <code>Department</code> has <code>Professors</code>, but a professor can exist without the department). <strong>Composition</strong> — a stricter "owns-a" relationship where the part's lifecycle is bound to the whole (a <code>House</code> and its <code>Room</code>s — destroy the house, the rooms are gone).</td>
+<td>This distinction is asked constantly and is exactly the thing "favor composition" is telling you to reach for over inheritance.</td>
+</tr>
+</tbody>
+</table>
+<div class="sd-remarks-slot" data-key="11-object-oriented-programming-foundations"></div>
+<h3 id="12-uml-communicating-the-design"><span class="sd-slot" data-key="12-uml-communicating-the-design"></span><span class="sec-num">1.2</span>UML — communicating the design</h3>
+<p>You don't need to hand-draw textbook-perfect UML, but you need its vocabulary to narrate a design out loud and sketch it legibly.</p>
+<ul>
+<li><strong>Class diagram</strong> — the workhorse. Boxes for classes (name / attributes / methods), lines for relationships: solid line = association, hollow diamond = aggregation, filled diamond = composition, hollow triangle arrow = inheritance, dashed arrow = dependency/interface implementation.</li>
+<li><strong>Use-case diagram</strong> — actors (primary actors on the left — the people initiating action; secondary actors on the right — systems being acted upon, like a Bank or a Notification service) connected to the actions they can trigger. Good first artifact to align on scope with an interviewer.</li>
+<li><strong>Sequence diagram</strong> — actors and objects as vertical lifelines, arrows as messages between them over time (solid = synchronous call, dashed = return/async), activation bars showing when an object is actively processing. Best for narrating one specific flow ("what happens when a seat is booked").</li>
+<li><strong>Activity diagram</strong> — a flowchart of control flow: start/end nodes, actions, decision diamonds, fork/join bars for parallel flows.</li>
+<li><strong>Component &amp; deployment diagrams</strong> — component diagrams show module-level structure (interfaces as "lollipop/socket" notation); deployment diagrams show physical placement (which service runs on which node) — more HLD-flavored, but they bridge the two rounds.</li>
+</ul>
+<p><strong>A repeatable LLD process:</strong></p>
+<ol>
+<li>Extract the nouns from the problem statement and assumptions — each becomes a candidate class.</li>
+<li>Draw the use-case diagram: who are the actors, what can each trigger?</li>
+<li>Draw the class diagram: relationships, then narrow to the key attributes/methods; mark abstract classes and interfaces; add enums for fixed sets of states (<code>OrderStatus</code>, <code>SeatType</code>).</li>
+<li>Write skeleton code: class shells, constructors, getters/setters.</li>
+<li>Fill in the two or three methods that actually contain interesting logic — this is where design patterns tend to show up.</li>
+</ol>
+<div class="sd-remarks-slot" data-key="12-uml-communicating-the-design"></div>
+<h3 id="13-solid-principles"><span class="sd-slot" data-key="13-solid-principles"></span><span class="sec-num">1.3</span>SOLID Principles</h3>
+<table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>One-line definition</th>
+<th>Smell it fixes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>S</strong> — Single Responsibility</td>
+<td>A class should have one reason to change.</td>
+<td>"God classes" that handle validation, persistence, and business logic all at once.</td>
+</tr>
+<tr>
+<td><strong>O</strong> — Open/Closed</td>
+<td>Open for extension, closed for modification — add new behavior via new code, not by editing existing, tested code.</td>
+<td>Long <code>if/else</code> or <code>switch</code> chains that grow every time a new case appears; polymorphism replaces the branch.</td>
+</tr>
+<tr>
+<td><strong>L</strong> — Liskov Substitution</td>
+<td>A subclass must be usable anywhere its superclass is expected, without breaking correctness.</td>
+<td>The classic "Square extends Rectangle" trap, or a <code>Duck</code> subclass that can't actually <code>fly()</code>.</td>
+</tr>
+<tr>
+<td><strong>I</strong> — Interface Segregation</td>
+<td>Many small, client-specific interfaces beat one fat interface that forces classes to implement methods they don't need.</td>
+<td>A <code>Worker</code> interface with <code>eat()</code> that a <code>RobotWorker</code> is forced to implement meaninglessly.</td>
+</tr>
+<tr>
+<td><strong>D</strong> — Dependency Inversion</td>
+<td>Depend on abstractions, not concrete implementations; high-level modules shouldn't reach directly into low-level details.</td>
+<td>Hard-wiring <code>new MySQLDatabase()</code> inside a service class instead of injecting a <code>Database</code> interface — the reason dependency injection frameworks exist.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Three more OOD principles, predating and underlying SOLID</strong>, that show up constantly in code review and pattern discussions independent of which pattern is on the table:</p>
+<ul>
+<li><strong>Program to an interface, not an implementation</strong> — declare variables, parameters, and return types using an abstract type (an interface or abstract class) rather than a concrete one, even when only one implementation exists today. This is the design habit that makes Dependency Inversion and most of the Creational patterns below (Factory Method, Abstract Factory) actually pay off — swapping an implementation later becomes a one-line change instead of a search-and-replace across the codebase.</li>
+<li><strong>Principle of Least Knowledge (the Law of Demeter)</strong> — an object should only "talk to its immediate friends": the objects passed directly to its methods, objects it creates itself, and its own direct fields — not objects it reaches by chaining through one of those (<code>getEngine().getCarburetor().adjust()</code> is the textbook violation). Following it means writing more small forwarding methods, in exchange for classes that can change their own internals without breaking every caller that reached through them.</li>
+<li><strong>The Hollywood Principle</strong> ("don't call us, we'll call you") — low-level components don't call back up into high-level ones directly; instead, high-level code hooks itself into low-level extension points and waits to be invoked. This is the exact mechanic behind the <strong>Template Method</strong> and <strong>Observer</strong> patterns below (a subclass never calls its own template steps directly — the base class calls them at the right moment) and the general principle behind <strong>inversion of control</strong> / dependency-injection frameworks and most plugin architectures.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="13-solid-principles"></div>
+<h3 id="14-the-23-design-patterns-gang-of-four"><span class="sd-slot" data-key="14-the-23-design-patterns-gang-of-four"></span><span class="sec-num">1.4</span>The 23 Design Patterns (Gang of Four)</h3>
+<p>Design patterns are named, reusable solutions to recurring OOD problems — not a checklist to force into every answer, but a shared vocabulary that lets you say "Strategy pattern" instead of re-explaining an idea from scratch.</p>
+<p><strong>Creational — how objects get created</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Problem it solves</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Singleton</strong></td>
+<td>Ensure exactly one instance of a class exists, with global access.</td>
+<td>A config manager or connection pool. Watch for thread-safety and testability critiques — it's the most over-used pattern in real codebases.</td>
+</tr>
+<tr>
+<td><strong>Factory Method</strong></td>
+<td>Delegate object creation to subclasses instead of calling <code>new</code> directly.</td>
+<td>A <code>NotificationFactory</code> that returns an <code>SMSNotification</code> or <code>EmailNotification</code> based on input.</td>
+</tr>
+<tr>
+<td><strong>Abstract Factory</strong></td>
+<td>A factory of related factories — produce families of related objects without specifying concrete classes.</td>
+<td>A UI toolkit producing a matched set of <code>Button</code>/<code>Checkbox</code> for Windows vs. macOS.</td>
+</tr>
+<tr>
+<td><strong>Builder</strong></td>
+<td>Construct a complex object step-by-step, avoiding telescoping constructors; supports method chaining.</td>
+<td>Building an immutable <code>Pizza</code> with optional toppings, or an HTTP request object.</td>
+</tr>
+<tr>
+<td><strong>Prototype</strong></td>
+<td>Create new objects by cloning an existing instance rather than building from scratch.</td>
+<td>Cloning a pre-configured <code>Car</code> template for many similar instances.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Structural — how objects and classes compose</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Problem it solves</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Adapter</strong></td>
+<td>Let two incompatible interfaces work together by wrapping one in a translator.</td>
+<td>Wrapping a legacy <code>Printer.print()</code> API to match a new <code>Document.render()</code> interface.</td>
+</tr>
+<tr>
+<td><strong>Facade</strong></td>
+<td>Provide one simplified interface over a complex subsystem.</td>
+<td>A <code>MediaFacade.playMovie()</code> that hides codec, subtitle, and audio subsystem calls.</td>
+</tr>
+<tr>
+<td><strong>Composite</strong></td>
+<td>Treat individual objects and compositions of objects uniformly via a shared interface — the classic fix for "folders containing files and other folders."</td>
+<td>A filesystem tree, or a UI component tree.</td>
+</tr>
+<tr>
+<td><strong>Decorator</strong></td>
+<td>Attach responsibilities to an object dynamically, as an alternative to subclassing for every combination.</td>
+<td>Wrapping a <code>Coffee</code> with <code>MilkDecorator</code>, then <code>SugarDecorator</code>, stacking behavior at runtime.</td>
+</tr>
+<tr>
+<td><strong>Proxy</strong></td>
+<td>A stand-in that controls access to a real object — for lazy loading, access control, caching, or remote calls.</td>
+<td>A <code>RealImage</code> only loaded from disk when <code>display()</code> is actually called.</td>
+</tr>
+<tr>
+<td><strong>Flyweight</strong></td>
+<td>Share common state across many fine-grained objects to cut memory use.</td>
+<td>Rendering millions of trees in a game by sharing one mesh/texture object and only storing per-instance position.</td>
+</tr>
+<tr>
+<td><strong>Bridge</strong></td>
+<td>Decouple an abstraction from its implementation so the two can vary independently.</td>
+<td>Separating a <code>Shape</code> hierarchy from a <code>Renderer</code> hierarchy so any shape can use any renderer.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Behavioral — how objects communicate and share responsibility</strong></p>
+<table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Problem it solves</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Observer</strong></td>
+<td>One-to-many dependency: when a subject changes state, all dependents are notified automatically.</td>
+<td>A weather station pushing updates to multiple display subscribers; the pub/sub pattern at object scale.</td>
+</tr>
+<tr>
+<td><strong>Strategy</strong></td>
+<td>Encapsulate interchangeable algorithms behind a common interface, selected at runtime.</td>
+<td>Swapping payment methods (<code>CreditCardStrategy</code>, <code>UPIStrategy</code>) without touching the checkout class.</td>
+</tr>
+<tr>
+<td><strong>Template Method</strong></td>
+<td>Define the skeleton of an algorithm in a base class, letting subclasses override specific steps.</td>
+<td>A <code>Beverage</code> base class fixing "boil water → brew → pour → add condiments," with <code>Tea</code>/<code>Coffee</code> overriding just the condiment step.</td>
+</tr>
+<tr>
+<td><strong>Chain of Responsibility</strong></td>
+<td>Pass a request along a chain of handlers until one handles it.</td>
+<td>A support-ticket escalation chain: L1 → L2 → supervisor.</td>
+</tr>
+<tr>
+<td><strong>Command</strong></td>
+<td>Encapsulate a request as an object, enabling queuing, undo/redo, and logging of operations.</td>
+<td>A text editor's undo stack, or a remote-control button bound to an action object.</td>
+</tr>
+<tr>
+<td><strong>Iterator</strong></td>
+<td>Provide a way to traverse a collection's elements without exposing its internal structure.</td>
+<td>Standard-library iterators over lists, trees, or custom collections.</td>
+</tr>
+<tr>
+<td><strong>State</strong></td>
+<td>Let an object alter its behavior when its internal state changes, appearing to change class.</td>
+<td>An <code>Order</code> behaving differently in <code>Placed</code>, <code>Shipped</code>, and <code>Delivered</code> states.</td>
+</tr>
+<tr>
+<td><strong>Mediator</strong></td>
+<td>Centralize complex communications between a set of objects so they don't reference each other directly.</td>
+<td>An air-traffic-control tower coordinating planes that never talk to each other directly.</td>
+</tr>
+<tr>
+<td><strong>Memento</strong></td>
+<td>Capture and externalize an object's internal state so it can be restored later, without violating encapsulation.</td>
+<td>Save/checkpoint functionality in a game.</td>
+</tr>
+<tr>
+<td><strong>Visitor</strong></td>
+<td>Separate an algorithm from the object structure it operates on by adding a "visit" method per element type.</td>
+<td>Running multiple unrelated operations (export, validation, pretty-print) over a fixed AST/document tree.</td>
+</tr>
+<tr>
+<td><strong>Interpreter</strong></td>
+<td>Define a representation for a grammar and an interpreter to evaluate sentences in it.</td>
+<td>A simple rule engine or expression evaluator.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Compound patterns — MVC as the running example:</strong> patterns are frequently used together rather than in isolation, and <strong>Model-View-Controller</strong> is the classic illustration of three patterns cooperating: the Model notifies interested parties of state changes via <strong>Observer</strong>; a View can be swapped out (a web view vs. a mobile view over the same Model) because the View treats the Model through the <strong>Strategy</strong>-like separation of what changes from what stays fixed; and the Controller mediating between View and Model is a variant of <strong>Adapter</strong> — translating raw user input into the operations the Model actually understands. Recognizing that a familiar architecture <em>is</em> a composition of smaller patterns, rather than something unrelated to them, is itself a useful interview reflex — it's the difference between having memorized 23 flashcards and actually understanding the vocabulary.</p>
+<div class="sd-remarks-slot" data-key="14-the-23-design-patterns-gang-of-four"></div>
+<h3 id="15-worked-lld-case-studies"><span class="sd-slot" data-key="15-worked-lld-case-studies"></span><span class="sec-num">1.5</span>Worked LLD Case Studies</h3>
+<p>Every LLD round follows the same rhythm: nouns → actors → class diagram → skeleton → key methods. Below are the four problems that show up most often (parking lot and elevator are near-universal; movie ticketing and library systems are close seconds), condensed to their skeleton.</p>
+<h4 id="design-a-parking-lot"><span class="sd-slot" data-key="design-a-parking-lot"></span>Design a Parking Lot</h4>
+<p><strong>Why this problem, specifically:</strong> it's the most-asked LLD question precisely because it's rich enough to sustain 45 minutes without being exotic — it has a natural class hierarchy, a genuinely interesting assignment algorithm, a real concurrency race condition, and an easy bridge into HLD if the interviewer wants to keep going. Treat everything below as material for one continuous conversation, not a checklist to recite.</p>
+<p><strong>Clarifying questions to ask before designing anything:</strong></p>
+<ul>
+<li>Is this a single-level lot or multi-level? (Assume multi-level — it's more general and costs nothing extra in the class design.)</li>
+<li>How many entry/exit gates? Can a vehicle pay at exit, or is this a reserve-ahead model?</li>
+<li>Which vehicle types and spot types — motorcycles, cars, buses/trucks, handicapped, electric-charging?</li>
+<li>Is pricing flat, hourly, or dynamic (surge-style)?</li>
+<li>Is this a whiteboard/verbal round, or will you be asked to produce compilable code? (Changes how much you write out vs. describe.)</li>
+<li>Scale: is this "one physical garage" (pure LLD) or "10,000 garages across a city" (the HLD bridge, Section 0's note on which round you're actually in)? Confirm you're solving the single-garage version unless told otherwise.</li>
+</ul>
+<p><strong>Functional requirements (state these out loud before class design):</strong></p>
+<ol>
+<li>A vehicle can enter, be assigned an available spot matching its size, and receive a ticket recording entry time and spot.</li>
+<li>A vehicle can exit by presenting its ticket; the system computes a fee and processes payment, then frees the spot.</li>
+<li>The system tracks real-time availability per spot type and can report "full" before a vehicle enters a level that has none free.</li>
+<li>An admin can add/remove levels and spots, and mark a spot out of service (maintenance) without deleting it.</li>
+</ol>
+<p><strong>Non-functional requirements:</strong> thread-safe spot assignment under concurrent entries (the sharpest technical requirement in the whole problem); extensible to new vehicle/spot types and new pricing schemes without modifying existing classes (Open/Closed, Section 1.3); reasonably fast assignment (a linear scan of a few hundred spots is fine — this is not a distributed-systems performance problem).</p>
+<p><strong>Class diagram:</strong></p>
+<pre class="mermaid">
+classDiagram
+    class ParkingLot {
+        -List~Level~ levels
+        -ParkingLot instance$
+        +getInstance()$ ParkingLot
+        +parkVehicle(Vehicle) Ticket
+        +unparkVehicle(Ticket) Receipt
+        +getAvailableSpotCount(SpotType) int
+    }
+    class Level {
+        -int floorNumber
+        -List~ParkingSpot~ spots
+        +findAvailableSpot(VehicleType) ParkingSpot
+        +addSpot(ParkingSpot)
+    }
+    class ParkingSpot {
+        &lt;&lt;abstract&gt;&gt;
+        -String spotId
+        -SpotStatus status
+        -Vehicle vehicle
+        +assignVehicle(Vehicle) bool
+        +removeVehicle()
+        +isAvailable() bool
+    }
+    class CompactSpot
+    class LargeSpot
+    class HandicappedSpot
+    class ElectricSpot
+    class Vehicle {
+        &lt;&lt;abstract&gt;&gt;
+        -String licensePlate
+        -VehicleType type
+    }
+    class Car
+    class Motorcycle
+    class Truck
+    class Ticket {
+        -String ticketId
+        -DateTime entryTime
+        -Vehicle vehicle
+        -ParkingSpot spot
+    }
+    class PricingStrategy {
+        &lt;&lt;interface&gt;&gt;
+        +calculateFee(Ticket) double
+    }
+    class FlatRatePricing
+    class HourlyRatePricing
+    class SpotAssignmentStrategy {
+        &lt;&lt;interface&gt;&gt;
+        +findSpot(Level, VehicleType) ParkingSpot
+    }
+    class NearestSpotStrategy
+    class BestFitStrategy
+
+    ParkingLot "1" *-- "many" Level
+    Level "1" *-- "many" ParkingSpot
+    ParkingSpot &lt;|-- CompactSpot
+    ParkingSpot &lt;|-- LargeSpot
+    ParkingSpot &lt;|-- HandicappedSpot
+    ParkingSpot &lt;|-- ElectricSpot
+    Vehicle &lt;|-- Car
+    Vehicle &lt;|-- Motorcycle
+    Vehicle &lt;|-- Truck
+    ParkingSpot "1" o-- "0..1" Vehicle
+    Ticket "1" --&gt; "1" Vehicle
+    Ticket "1" --&gt; "1" ParkingSpot
+    PricingStrategy &lt;|.. FlatRatePricing
+    PricingStrategy &lt;|.. HourlyRatePricing
+    SpotAssignmentStrategy &lt;|.. NearestSpotStrategy
+    SpotAssignmentStrategy &lt;|.. BestFitStrategy
+    ParkingLot ..&gt; Ticket : creates
+    ParkingLot ..&gt; PricingStrategy : uses
+    Level ..&gt; SpotAssignmentStrategy : uses
+</pre>
+<p><strong>Why each design decision is made, not just what it is:</strong></p>
+<ul>
+<li><strong><code>ParkingLot</code> as Singleton.</strong> There is exactly one physical lot represented by exactly one in-memory coordinator — two instances would let two entry gates independently believe a spot is free. Prefer <strong>enum-based singleton</strong> or <strong>eager initialization</strong> over classic <strong>lazy double-checked locking</strong>: DCL is the answer interviewers expect you to know exists, but naming its historical pitfall (needing the <code>volatile</code> keyword in Java to stop instruction-reordering bugs, in languages where that's relevant) and preferring a simpler eager or enum singleton unless lazy loading is genuinely required is the stronger answer. Also flag the trade-off unprompted: singletons make unit testing harder (global mutable state) and are frequently cited as an overused pattern — a strong candidate says this even while choosing it here, because a single physical resource is one of the few cases where it's actually the right call.</li>
+<li><strong><code>ParkingSpot</code> as an abstract class, not an interface.</strong> Spots share real state (status, occupying vehicle) and real behavior (<code>assignVehicle</code>/<code>removeVehicle</code>), not just a contract — that's exactly the "abstract class holds shared implementation" case from Section 1.1, versus an interface which would force every subtype to reimplement identical logic.</li>
+<li><strong>Spot assignment as <code>Strategy</code>, injected into <code>Level</code>.</strong> The assignment policy (nearest spot, best-fit by size to minimize wasted large spots, or a policy that spreads vehicles across levels for fire-safety egress) is exactly the kind of "this will change" axis the Head First principle "identify what varies and encapsulate it" (Section 1.3) is describing — hardcoding one policy into <code>Level.findAvailableSpot()</code> would force a code change every time the business wants a different policy, whereas injecting a <code>SpotAssignmentStrategy</code> lets you swap it with zero changes to <code>Level</code> itself.</li>
+<li><strong>Pricing as <code>Strategy</code> too</strong>, for the identical reason — flat rate, hourly, and dynamic pricing are three implementations of one interface, selected at <code>ParkingLot</code> construction time or even per-vehicle-type.</li>
+</ul>
+<p><strong>The spot-assignment algorithm, worked through:</strong></p>
+<pre><code>function findAvailableSpot(level, vehicleType):
+    requiredSpotType = mapVehicleToSpotType(vehicleType)  // e.g. Motorcycle -&gt; Compact-or-larger OK
+    for spot in level.spots:
+        if spot.isAvailable() and spot.type &gt;= requiredSpotType:
+            return spot
+    return null  // this level is full for this vehicle type; caller tries next level
+</code></pre>
+<p>This is intentionally simple (linear scan) — say so, and justify it: a real garage has hundreds, not millions, of spots, so O(n) is fine, and prematurely reaching for an index here is exactly the over-engineering anti-pattern from Section 0.6's checklist. The one real optimization worth naming if pushed: maintain a small <strong>free-count per spot-type, per level</strong> counter, updated on assign/release, so <code>getAvailableSpotCount()</code> and "is this level even worth scanning" are O(1) instead of re-scanning every time — a cache in front of a linear scan, not a replacement for one.</p>
+<p><strong>The concurrency race condition — this is the question that separates candidates:</strong> two vehicles arrive at two different entry gates simultaneously; both threads call <code>findAvailableSpot()</code>, both see the <em>same</em> single remaining compact spot as available, and both try to assign it. A naive <code>if (spot.isAvailable()) { spot.assignVehicle(v); }</code> has a check-then-act race between the <code>if</code> and the assignment. Fixes, from simplest to most scalable:</p>
+<ol>
+<li><strong>Synchronize at the spot level</strong> — <code>assignVehicle()</code> itself is <code>synchronized</code> (or wraps its state change in a lock), and returns <code>false</code> if the spot was already taken between the caller's check and the call; the caller loops to the next candidate spot on <code>false</code>. This is the answer to actually give — it makes the <em>spot</em> responsible for its own atomicity, rather than trusting every caller to lock correctly.</li>
+<li><strong>A single lock around the whole assignment section</strong> — correct but serializes every entry gate through one lock, a real throughput problem once you have many gates; worth naming as the naive-but-safe baseline before presenting option 1 as the improvement.</li>
+<li><strong>Compare-and-swap on spot status</strong> (<code>status.compareAndSet(FREE, OCCUPIED)</code>) — the lock-free version of option 1, worth naming if the interviewer pushes on lock contention specifically.</li>
+</ol>
+<p><strong>Concrete method walkthrough — <code>parkVehicle</code>:</strong></p>
+<pre><code>function parkVehicle(vehicle):
+    for level in levels:                       // in some priority order
+        spot = level.findAvailableSpot(vehicle.type)
+        if spot != null and spot.assignVehicle(vehicle):   // atomic; see above
+            ticket = new Ticket(vehicle, spot, now())
+            return ticket
+    throw LotFullException()
+</code></pre>
+<p>And <code>unparkVehicle</code>:</p>
+<pre><code>function unparkVehicle(ticket):
+    fee = pricingStrategy.calculateFee(ticket)
+    receipt = paymentProcessor.charge(ticket.vehicle.owner, fee)   // Section 2.12's idempotency key applies to this call
+    ticket.spot.removeVehicle()
+    return receipt
+</code></pre>
+<p><strong>Extensions an interviewer will likely steer toward, and the right shape of answer for each:</strong></p>
+<ul>
+<li><em>"Add electric vehicle charging spots that bill differently while occupied."</em> — a new <code>ElectricSpot</code> subclass with its own metered-billing hook, and a <code>PricingStrategy</code> variant that reads meter data instead of just elapsed time; no change to <code>ParkingLot</code> or <code>Level</code>.</li>
+<li><em>"Support monthly pass holders who skip the ticket/payment flow."</em> — a <code>Vehicle</code> gets an optional <code>subscription</code> reference; <code>parkVehicle</code> checks for an active subscription before falling through to the normal ticket path — an argument for a <code>Customer</code>/<code>Subscription</code> class you'd add, not a change to the spot-assignment logic at all.</li>
+<li><em>"What if there are multiple entry gates and you want to load-balance which level each gate sends vehicles to?"</em> — this is explicitly the bridge to HLD (Section 0's two-interview framing): now <code>findAvailableSpot</code> needs to be backed by a shared, low-latency availability service (Redis counters per level/type) rather than an in-process object, because multiple gate processes need a consistent view — say this transition out loud rather than trying to keep solving it as pure OOD.</li>
+<li><em>"How would you test this?"</em> — unit tests per spot-assignment strategy in isolation (inject a fake <code>Level</code> with a fixed spot layout), a concurrency test that fires N threads at a lot with fewer than N free spots and asserts exactly the free-spot-count worth of successful assignments, and a fee-calculation test per pricing strategy independent of parking logic — the fact that <code>Strategy</code> makes each of these testable in isolation, without spinning up the whole <code>ParkingLot</code>, is itself worth saying as a payoff of the pattern choice.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="design-a-parking-lot"></div>
+<h4 id="design-an-elevator-system"><span class="sd-slot" data-key="design-an-elevator-system"></span>Design an Elevator System</h4>
+<p><strong>Why this problem, specifically:</strong> unlike the parking lot, the <em>state machine</em> is the star here, not the class hierarchy — this is the LLD question that most directly tests whether you actually understand the <strong>State</strong> pattern and can compare scheduling algorithms with real trade-offs, rather than just naming them.</p>
+<p><strong>Clarifying questions:</strong> how many elevators, how many floors — and critically, <strong>is this one elevator or a bank of elevators sharing a call system?</strong> (Assume a bank — it's the more general, more interesting version, and the single-elevator case falls out of it as N=1.) Are there separate express/service elevators? Does the building have a maximum weight/capacity to enforce? Do you need to model a real-time simulation (clock ticks) or just the request-handling logic?</p>
+<p><strong>Functional requirements:</strong></p>
+<ol>
+<li>A passenger inside a car can select a destination floor (an <strong>internal request</strong>).</li>
+<li>A passenger on a floor can press up/down (an <strong>external request</strong> — notice this does <em>not</em> specify a destination floor, only a direction, which is exactly why it's modeled as a separate request type).</li>
+<li>A central controller assigns each external request to one elevator in the bank.</li>
+<li>Each elevator reports its current floor, direction, and door state, and the system displays it.</li>
+</ol>
+<p><strong>Non-functional requirements:</strong> minimize average wait time; avoid starvation (a request in the "wrong" direction shouldn't wait forever while the elevator keeps servicing same-direction requests); safe behavior under door-obstruction and overweight conditions.</p>
+<p><strong>Class diagram:</strong></p>
+<pre class="mermaid">
+classDiagram
+    class ElevatorController {
+        -List~Elevator~ elevators
+        -DispatchStrategy strategy
+        +requestElevator(floor, direction) 
+        +stepSimulation()
+    }
+    class Elevator {
+        -int id
+        -int currentFloor
+        -Direction direction
+        -ElevatorState state
+        -TreeSet~int~ upStops
+        -TreeSet~int~ downStops
+        +addInternalRequest(floor)
+        +move()
+        +setState(ElevatorState)
+    }
+    class ElevatorState {
+        &lt;&lt;interface&gt;&gt;
+        +handle(Elevator)
+    }
+    class IdleState
+    class MovingState
+    class DoorOpenState
+    class DispatchStrategy {
+        &lt;&lt;interface&gt;&gt;
+        +selectElevator(List~Elevator~, floor, direction) Elevator
+    }
+    class NearestCarStrategy
+    class ScanLookStrategy
+    class Request {
+        &lt;&lt;abstract&gt;&gt;
+        -int floor
+    }
+    class InternalRequest
+    class ExternalRequest {
+        -Direction direction
+    }
+
+    ElevatorController "1" *-- "many" Elevator
+    ElevatorController ..&gt; DispatchStrategy : uses
+    Elevator "1" --&gt; "1" ElevatorState
+    ElevatorState &lt;|.. IdleState
+    ElevatorState &lt;|.. MovingState
+    ElevatorState &lt;|.. DoorOpenState
+    DispatchStrategy &lt;|.. NearestCarStrategy
+    DispatchStrategy &lt;|.. ScanLookStrategy
+    Request &lt;|-- InternalRequest
+    Request &lt;|-- ExternalRequest
+    ElevatorController ..&gt; Request : receives
+</pre>
+<p><strong>Why State, concretely, not just "it fits":</strong> an elevator's response to "a button was pressed" genuinely depends on what it's currently doing — if <code>DoorOpenState</code>, a floor request just resets the door-close timer; if <code>MovingState</code>, it enqueues the floor as a stop; if <code>IdleState</code>, it starts moving. Without the State pattern this becomes a wall of <code>if (state == IDLE) ... else if (state == MOVING) ...</code> inside every single method — exactly the "long conditional chain that grows every time a new case appears" smell the Open/Closed principle (Section 1.3) names, and exactly what State fixes by giving each state its own class implementing a shared <code>handle()</code>-style interface, with the elevator simply delegating to <code>currentState.handle(this)</code>.</p>
+<p><strong>The dispatch algorithm — the single most-probed part of this problem.</strong> Compare at least two, concretely:</p>
+<ul>
+<li><strong>Nearest-car:</strong> assign the closest idle-or-same-direction elevator. Simple, minimizes wait time for <em>that</em> request, but can strand a far-away request indefinitely if closer elevators keep getting the newer calls first (starvation).</li>
+<li><strong>SCAN / LOOK</strong> (the disk-scheduling algorithm, repurposed): an elevator moving up continues servicing every up-request in its path until it runs out of up-requests above it, <em>then</em> reverses — it never reverses direction just because a new request appeared behind it. Maintained with two sorted sets (<code>upStops</code>, <code>downStops</code> in the class diagram above — a <code>TreeSet</code>/balanced BST gives O(log n) insert and O(1) "next stop" via <code>first()</code>); on arriving at a floor, pop it from the current-direction set, and only switch to the other set once the current one is empty. This bounds worst-case wait time far better than nearest-car and is what real elevator systems actually approximate.</li>
+<li><strong>Trade-off to state explicitly:</strong> nearest-car optimizes average wait time for the <em>next</em> request at the cost of fairness; SCAN optimizes worst-case fairness at a modest cost to average-case time for an isolated request. A strong answer picks one, states which metric it's optimizing for, and names the other as the alternative with the opposite trade-off — reciting only one algorithm without contrasting it against another is a memorized answer, not a reasoned one.</li>
+</ul>
+<p><strong>Concurrency:</strong> multiple floor-button presses can arrive at the controller concurrently from different floors; the controller's <code>requestElevator()</code> needs its elevator-selection-plus-assignment to be atomic per request (the same check-then-act shape as the parking lot's spot assignment), or two external requests can both be assigned to the same elevator under the mistaken belief each is "the only one this elevator just picked up," overloading its effective stop count. In practice: each <code>Elevator</code>'s stop-set mutation is synchronized, exactly like <code>ParkingSpot.assignVehicle()</code> above.</p>
+<p><strong>Extensions an interviewer will likely steer toward:</strong></p>
+<ul>
+<li><em>"What about weight/capacity limits?"</em> — <code>Elevator</code> gains a <code>currentLoad</code> and refuses new internal requests (door won't close, or an overweight alarm state) past a threshold — a new <code>OverweightState</code> in the state machine, not a change to the dispatch logic.</li>
+<li><em>"VIP/express floors that skip intermediate stops?"</em> — a second <code>DispatchStrategy</code> implementation reserved for those elevators; the <code>ElevatorController</code> already supports per-elevator or per-zone strategies if <code>strategy</code> is modeled as potentially different per elevator group, which is worth mentioning as a reason to keep <code>DispatchStrategy</code> pluggable rather than a single global field.</li>
+<li><em>"Fire alarm — all elevators must go to ground floor and stop responding to calls."</em> — a system-wide override state, most cleanly modeled as the controller broadcasting a forced state transition to every elevator rather than each elevator polling for the condition itself (Section 1.3's Hollywood Principle: the controller calls the elevators, they don't each independently poll for an alarm).</li>
+</ul>
+<div class="sd-remarks-slot" data-key="design-an-elevator-system"></div>
+<h4 id="design-a-movie-ticket-booking-system"><span class="sd-slot" data-key="design-a-movie-ticket-booking-system"></span>Design a Movie-Ticket Booking System</h4>
+<p><strong>Why this problem, specifically:</strong> the concurrency correctness problem (don't sell the same seat twice) is genuinely one of the best vehicles across <em>all</em> of LLD for demonstrating you understand locking, and it previews the idempotency/distributed-locking material from Part II directly — a candidate who connects the two rounds here stands out.</p>
+<p><strong>Clarifying questions:</strong> single theater or a multiplex chain across a city? Reserved seating or general admission? Is payment synchronous (blocks the seat hold) or can it be a longer, separate flow? Do seats need types (recliner, standard, wheelchair-accessible) with different pricing?</p>
+<p><strong>Functional requirements:</strong></p>
+<ol>
+<li>A user searches movies by city/date and sees shows with available seat counts.</li>
+<li>A user selects specific seats for a show and holds them temporarily.</li>
+<li>A user pays; on success, the booking is confirmed and seats are permanently marked sold; on failure or timeout, seats are released back to available.</li>
+<li>A theater admin can create/update shows and screens.</li>
+</ol>
+<p><strong>Class diagram:</strong></p>
+<pre class="mermaid">
+classDiagram
+    class Movie {
+        -String title
+        -int durationMins
+    }
+    class Theater {
+        -String name
+        -List~Screen~ screens
+    }
+    class Screen {
+        -int screenNumber
+        -List~Seat~ seats
+    }
+    class Show {
+        -DateTime startTime
+        -Movie movie
+        -Screen screen
+    }
+    class Seat {
+        -String seatId
+        -SeatType type
+    }
+    class SeatType {
+        &lt;&lt;enumeration&gt;&gt;
+        REGULAR
+        PREMIUM
+        RECLINER
+    }
+    class ShowSeat {
+        -SeatStatus status
+        -String heldByBookingId
+        -DateTime holdExpiry
+    }
+    class Booking {
+        -String bookingId
+        -BookingStatus status
+        -List~ShowSeat~ seats
+        -User user
+    }
+    class BookingStatus {
+        &lt;&lt;enumeration&gt;&gt;
+        PENDING_PAYMENT
+        CONFIRMED
+        EXPIRED
+        CANCELLED
+    }
+    class PaymentProcessor {
+        &lt;&lt;interface&gt;&gt;
+        +charge(Booking) PaymentResult
+    }
+
+    Theater "1" *-- "many" Screen
+    Screen "1" *-- "many" Seat
+    Seat &lt;|-- ShowSeat
+    Show "1" --&gt; "1" Movie
+    Show "1" --&gt; "1" Screen
+    Show "1" *-- "many" ShowSeat
+    Booking "1" o-- "many" ShowSeat
+    Booking ..&gt; PaymentProcessor : uses
+    Booking --&gt; BookingStatus
+    Seat --&gt; SeatType
+</pre>
+<p>Notice <code>ShowSeat</code> is a distinct entity from <code>Seat</code> — a physical <code>Seat</code> (seat B12 in Screen 3) is fixed, but its <strong>availability status is per-show</strong>, not a permanent property of the seat itself. Modeling status directly on <code>Seat</code> is a common mistake that quietly breaks the moment the same screen hosts two different shows in one day.</p>
+<p><strong>The seat-locking algorithm, worked through precisely — this is the entire interview:</strong></p>
+<pre><code>function holdSeats(showId, seatIds, userId):
+    bookingId = generateId()
+    for seatId in seatIds:
+        // atomic conditional update — the same primitive as Section 2.18's
+        // fix for the lost-update anomaly, applied at LLD scale
+        success = db.updateShowSeat(
+            showId, seatId,
+            setStatus = HELD, heldBy = bookingId, holdExpiry = now() + 5min,
+            WHERE status = AVAILABLE
+        )
+        if not success:
+            rollbackAnyHeldSeatsSoFar(bookingId)
+            throw SeatUnavailableException(seatId)
+    return new Booking(bookingId, PENDING_PAYMENT, seatIds, userId)
+
+function confirmBooking(bookingId, paymentResult):
+    if paymentResult.success:
+        db.updateSeatsStatus(bookingId, newStatus = SOLD)
+        booking.status = CONFIRMED
+    else:
+        db.releaseSeats(bookingId)   // status back to AVAILABLE
+        booking.status = CANCELLED
+
+// a background sweep, independent of any user action:
+function expireStaleHolds():
+    for seat in db.findSeatsWhere(status = HELD, holdExpiry &lt; now()):
+        db.updateShowSeat(seat, status = AVAILABLE, heldBy = null)
+</code></pre>
+<p>The line to say explicitly: <strong>the correctness guarantee comes from the atomic conditional update (<code>WHERE status = AVAILABLE</code>), not from checking status first and writing second</strong> — a plain <code>if (seat.status == AVAILABLE) { seat.status = HELD; }</code> has exactly the same race as the parking lot's naive spot check, and this problem exists specifically to test whether you reach for the fix reflexively by now. In a single-process in-memory version this conditional update can be a <code>synchronized</code> block or a <code>compareAndSet</code>; in a real multi-server deployment it's a database row-level lock or a Redis <code>SET ... NX</code> — the LLD answer and the HLD answer are the same primitive at different scales, which is worth saying outright.</p>
+<p><strong>Why a 5-minute TTL hold, specifically, and what governs the number:</strong> too short, and a slow-but-genuine payment flow loses the seat out from under a paying customer; too long, and seats sit artificially unavailable while an abandoned session holds them — this is the exact same TTL-sizing trade-off named generically in Part II's distributed-locks discussion (Section 2.7), here applied to a business-visible, user-facing timer rather than an internal system lock.</p>
+<p><strong>Concurrency edge case interviewers probe directly:</strong> two users select the <em>same two seats</em> at the same instant. Walk through it: both call <code>holdSeats</code>; for the first seat, one succeeds and one fails (the atomic update guarantees exactly one <code>AVAILABLE → HELD</code> transition succeeds); the failing user's <em>entire</em> request should roll back cleanly (release any seats from that same request it did manage to hold a moment earlier), not leave them holding one seat out of the two they wanted — this all-or-nothing behavior is exactly why the pseudocode above rolls back on the first failure rather than continuing to try the remaining seats.</p>
+<p><strong>Extensions an interviewer will likely steer toward:</strong></p>
+<ul>
+<li><em>"What about a multiplex chain — same movie, many theaters, many cities?"</em> — the bridge to HLD's Ticket-Booking case study (Part III, Group F): search becomes a dedicated search/filter service, and the seat-hold TTL mechanism generalizes directly into the "virtual waiting room" pattern for a high-demand on-sale.</li>
+<li><em>"Group booking where seats must be adjacent?"</em> — a seat-adjacency query against the <code>Screen</code>'s seat layout <em>before</em> attempting holds, so you don't burn atomic-update attempts on a combination that was never geometrically valid.</li>
+<li><em>"Refunds and cancellations after confirmation?"</em> — a <code>Booking</code> state machine gains a <code>CANCELLED_POST_CONFIRMATION</code> transition with its own compensating action (seat back to available, refund initiated) — a small, self-contained Saga (Part II, Section 2.1) at LLD scale.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="design-a-movie-ticket-booking-system"></div>
+<h4 id="design-a-library-management-system"><span class="sd-slot" data-key="design-a-library-management-system"></span>Design a Library Management System</h4>
+<p><strong>Why this problem, specifically:</strong> it's usually treated as the "easier" LLD warm-up, and the risk is under-preparing for it — the reservation queue and fine calculation still deserve the same rigor as the harder problems above, and a surprising number of candidates fumble the <code>Book</code> vs. <code>BookItem</code> distinction that the whole design hinges on.</p>
+<p><strong>Clarifying questions:</strong> how many copies per title, typically? Are reservations first-come-first-served, or can a librarian prioritize? Are fines a hard block on further borrowing, or just tracked? Multiple branches sharing a catalog, or one building?</p>
+<p><strong>Functional requirements:</strong></p>
+<ol>
+<li>A member searches the catalog by title/author/ISBN and sees how many physical copies are currently available.</li>
+<li>A member checks out an available copy and returns it by its due date.</li>
+<li>If no copy is available, a member can reserve the title and is notified when one is returned.</li>
+<li>Overdue returns accrue a fine, tracked per member.</li>
+</ol>
+<p><strong>Class diagram:</strong></p>
+<pre class="mermaid">
+classDiagram
+    class Book {
+        -String isbn
+        -String title
+        -String author
+    }
+    class BookItem {
+        -String barcode
+        -BookStatus status
+        -DateTime dueDate
+    }
+    class BookStatus {
+        &lt;&lt;enumeration&gt;&gt;
+        AVAILABLE
+        LOANED
+        RESERVED
+    }
+    class Member {
+        -String memberId
+        -double outstandingFines
+        +checkout(BookItem)
+        +returnItem(BookItem)
+    }
+    class Reservation {
+        -Member member
+        -Book book
+        -DateTime reservedAt
+    }
+    class Loan {
+        -Member member
+        -BookItem item
+        -DateTime checkoutDate
+        -DateTime dueDate
+    }
+    class FineStrategy {
+        &lt;&lt;interface&gt;&gt;
+        +calculateFine(Loan) double
+    }
+    class FlatDailyFine
+    class CappedFine
+
+    Book "1" *-- "many" BookItem
+    BookItem --&gt; BookStatus
+    Book "1" o-- "many" Reservation : queue
+    Member "1" --&gt; "many" Loan
+    Loan "1" --&gt; "1" BookItem
+    FineStrategy &lt;|.. FlatDailyFine
+    FineStrategy &lt;|.. CappedFine
+    Member ..&gt; FineStrategy : billed via
+</pre>
+<p><strong>Why <code>Book</code> and <code>BookItem</code> are two classes, not one — the single most important modeling decision here:</strong> "Clean Code, 2nd Edition" is one catalog entry (<code>Book</code>) but a library might own five physical copies of it (five <code>BookItem</code>s), each independently checked out, returned, or lost. Collapsing them into one class makes it impossible to represent "3 of 5 copies are out" at all — a strong signal to an interviewer that you model from access patterns (Section 8, Part II's "query-driven design" idea) rather than from the nouns in the problem statement alone.</p>
+<p><strong>The reservation-queue algorithm:</strong> a <strong>FIFO queue per <code>Book</code></strong> (not per <code>BookItem</code> — a reservation is for the <em>title</em>, satisfied by whichever copy comes back first). On <code>returnItem()</code>:</p>
+<pre><code>function returnItem(item):
+    item.status = AVAILABLE
+    book = item.book
+    if book.reservationQueue is not empty:
+        nextMember = book.reservationQueue.pop()
+        item.status = RESERVED
+        notify(nextMember, item)   // e.g. via the Observer pattern, Part I §1.4 — 
+                                    // the book/queue is the subject, waiting members are observers
+        startHoldExpiryTimer(item, nextMember)  // same TTL-hold shape as the movie-ticket case study
+    else:
+        // stays AVAILABLE for direct checkout
+</code></pre>
+<p>Naming <strong>Observer</strong> here explicitly is worth doing unprompted — "notify waiting members when a copy returns" is a textbook one-to-many, subject-changes-state-and-dependents-are-told relationship, and connecting a fresh problem back to a named pattern is exactly the "shared vocabulary" payoff Section 1.4 opens with.</p>
+<p><strong>Fine calculation as <code>Strategy</code>, again</strong> — flat-per-day-late vs. a capped maximum are two implementations of one <code>FineStrategy</code> interface, injected into <code>Member</code> or into the checkout/return flow, for the identical reasoning already given twice above: it's an axis that varies by library policy, not by any other part of the design, so it should be free to change in isolation.</p>
+<p><strong>Concurrency note, and why it's lighter here than the other three problems:</strong> two members can't race for the <em>same</em> <code>BookItem</code> the way two drivers can race for the same parking spot, because checkout already requires physically holding a unique barcode-scanned copy — the real race is on the <strong>reservation queue itself</strong> (two returns happening concurrently, each trying to pop the next reservation), which is a standard concurrent-queue/producer-consumer problem, solvable with a synchronized queue or an atomic dequeue — worth naming as "the same shape of problem, smaller stakes" rather than a new concept.</p>
+<p><strong>Extensions an interviewer will likely steer toward:</strong></p>
+<ul>
+<li><em>"Multiple branches sharing one catalog?"</em> — <code>Book</code> stays global; <code>BookItem</code> gains a <code>branchId</code>, and search/reservation logic needs to decide whether a reservation is branch-specific or system-wide (a requirements question to ask back, not assume).</li>
+<li><em>"Digital/e-book copies with no physical scarcity?"</em> — a <code>DigitalBookItem</code> with a licensing-seat-count instead of a single physical copy, reusing the exact same <code>BookStatus</code>/checkout flow with a different availability rule (available while <code>activeLoans &lt; licenseSeats</code>).</li>
+<li><em>"A member with unpaid fines shouldn't be able to check out more books."</em> — a guard clause in <code>checkout()</code> checking <code>member.outstandingFines &lt; threshold</code> before proceeding; worth noting this is a business rule best kept as an explicit, visible check in the checkout flow rather than buried inside <code>Member</code>, so it's easy to find and change.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="design-a-library-management-system"></div>
+<h4 id="further-lld-practice-problems"><span class="sd-slot" data-key="further-lld-practice-problems"></span>Further LLD practice problems</h4>
+<p>The same nouns-to-classes process from Section 1.2 applies directly to these — worth timing yourself on at least a few once the four worked problems above feel comfortable:</p>
+<ul>
+<li><strong>Vending Machine</strong> and <strong>ATM</strong> — both are almost pure <strong>State</strong>-pattern exercises (idle → card-inserted → dispensing, or idle → coin-inserted → dispensing), good for drilling state machines specifically.</li>
+<li><strong>Chess</strong> — a strong test of modeling polymorphic behavior (each piece type overrides its own <code>validMoves()</code>) plus the <strong>Command</strong> pattern for move history/undo.</li>
+<li><strong>Splitwise-style expense sharing</strong> — the interesting logic is debt simplification (minimizing the number of settling transactions between a group), a nice small graph/greedy problem sitting inside an OOD shell.</li>
+<li><strong>Car Rental System</strong> — reservation/availability logic close cousin to the parking lot and movie-ticket problems above; good for confirming the pattern has actually generalized for you.</li>
+<li><strong>In-memory Logger / Hash Map / LRU Cache</strong> — implement one from scratch; the LRU Cache specifically (doubly linked list + hash map, O(1) get/put) is a recurring live-coding request layered on top of an LLD conversation.</li>
+<li><strong>Task Scheduler</strong> and <strong>Pub-Sub Broker</strong> — smaller-scope versions of Part II's Distributed Scheduler (Group G) and Messaging &amp; Events (Section 2.8), useful for seeing the same idea at both a single-process and a distributed scale.</li>
+</ul>
+<hr/>
+<div class="sd-remarks-slot" data-key="further-lld-practice-problems"></div>
+<div class="sd-remarks-slot" data-key="15-worked-lld-case-studies"></div>

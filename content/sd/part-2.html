@@ -1,0 +1,1221 @@
+<h2 id="part-ii-high-level-design-hld">Part II — High-Level Design (HLD)</h2>
+<p>This is the reference core of the guide — every building block that recurs across "design X" problems, organized the way your saved topic map laid it out, expanded with the depth each topic needs and the 2026 additions (AI infrastructure, updated consensus and consistency coverage) that the major courses added this year.</p>
+<h3 id="21-architecture-styles"><span class="sd-slot" data-key="21-architecture-styles"></span><span class="sec-num">2.1</span>Architecture Styles</h3>
+<table>
+<thead>
+<tr>
+<th>Style</th>
+<th>What it is</th>
+<th>Strengths</th>
+<th>Costs</th>
+<th>Real examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Monolith</strong></td>
+<td>Single codebase, single deployable unit, shared memory space, typically synchronous internal calls.</td>
+<td>Simple to build, debug, and deploy; no network hops between modules; fastest to ship v1.</td>
+<td>Scaling means replicating the <em>whole</em> app even if only one part is hot; one bug can take down everything; large codebases get harder to onboard into.</td>
+<td>Most startups' first architecture.</td>
+</tr>
+<tr>
+<td><strong>Modular monolith</strong></td>
+<td>A monolith with enforced internal boundaries (separate modules/packages with clear interfaces) but still one deployable.</td>
+<td>Keeps monolith simplicity while making a future microservices split tractable.</td>
+<td>Discipline-dependent — boundaries erode without enforcement.</td>
+<td>Shopify (famously) at large scale.</td>
+</tr>
+<tr>
+<td><strong>Microservices</strong></td>
+<td>Independent services, each owning its own data store, communicating over the network (usually REST/gRPC/events).</td>
+<td>Independent scaling and deployment per service; fault isolation (one service's crash doesn't cascade); teams can pick different tech per service.</td>
+<td>Network latency between calls; distributed-transaction complexity; much higher operational overhead (service discovery, distributed tracing, versioning).</td>
+<td>Netflix, Amazon (both migrated from monoliths explicitly to handle scale and team-independence).</td>
+</tr>
+<tr>
+<td><strong>Event-driven architecture (EDA)</strong></td>
+<td>Components communicate by producing and reacting to events through a broker, rather than direct calls.</td>
+<td>Strong decoupling — producers and consumers don't know about each other; natural fit for async workflows and real-time pipelines.</td>
+<td>Harder to trace a single request across the system; eventual consistency by default; duplicate-event handling (idempotency) becomes mandatory, not optional.</td>
+<td>Order-placed → payment, inventory, and notification services all reacting independently.</td>
+</tr>
+<tr>
+<td><strong>Serverless (FaaS)</strong></td>
+<td>Cloud provider manages all infrastructure; you deploy functions triggered by events (HTTP call, file upload, queue message).</td>
+<td>Zero idle cost, scales to zero and to huge burst automatically, no server management.</td>
+<td>Cold-start latency; vendor lock-in; harder to reason about long-running or stateful workloads; cost can spike unpredictably under sustained high load.</td>
+<td>AWS Lambda, Azure Functions, Google Cloud Functions — great for unpredictable-traffic APIs and event-driven glue code.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Monolith vs. microservices, side by side:</strong></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Monolith</th>
+<th>Microservices</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Codebase</td>
+<td>One</td>
+<td>Many, independently versioned</td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td>Whole app redeployed per change</td>
+<td>Each service deploys independently</td>
+</tr>
+<tr>
+<td>Scaling</td>
+<td>Scale the entire app</td>
+<td>Scale only the hot service</td>
+</tr>
+<tr>
+<td>Fault isolation</td>
+<td>A crash can take down everything</td>
+<td>A failure is contained to one service (with the right patterns)</td>
+</tr>
+<tr>
+<td>Operational overhead</td>
+<td>Low</td>
+<td>High — needs service discovery, distributed tracing, API versioning</td>
+</tr>
+</tbody>
+</table>
+<p><strong>How real migrations happen:</strong> understand the domain and its natural seams → extract one bounded service at a time (start with something low-risk, e.g., notifications) → keep the monolith and new service talking over a stable API during the transition → repeat. Nobody rewrites everything in one shot.</p>
+<p><strong>Supporting patterns for microservices:</strong></p>
+<ul>
+<li><strong>Circuit Breaker</strong> — wraps a call to a potentially-failing service in a state machine with three states: <strong>Closed</strong> (requests flow normally, failures are counted), <strong>Open</strong> (once failures cross a threshold, all calls fail fast without even attempting the network call, giving the failing service room to recover), <strong>Half-Open</strong> (after a cooldown, a trial request is let through to test recovery). This exists specifically to stop <strong>cascading failures</strong> — one slow downstream dependency shouldn't be able to exhaust every thread/connection in the callers upstream of it.</li>
+<li><strong>Bulkhead</strong> — named after a ship's watertight compartments: give each downstream dependency its own isolated pool of threads/connections, so a slow or hung dependency can only exhaust <em>its own</em> pool rather than starving every other call the service makes. Circuit breakers and bulkheads are usually deployed together — the bulkhead limits the blast radius while the breaker stops sending doomed requests entirely.</li>
+<li><strong>Retry and timeout discipline</strong> — exponential backoff with jitter (Section 2.8) on retries, a hard cap on retry count, and a <strong>retry budget</strong> (never let retries exceed some percentage of total traffic, or a failing dependency's load multiplies under you). Timeouts must <strong>cascade correctly</strong>: a caller's timeout should always be longer than its callee's, or the caller gives up and frees resources while the callee is still doing now-wasted work — a subtle bug that shows up under load but not in testing.</li>
+<li><strong>Sidecar pattern</strong> — a helper process deployed alongside a service (sharing its lifecycle) that handles cross-cutting concerns — logging, metrics, service discovery, mTLS termination — so the main service's code stays focused on business logic. This is the mechanism a <strong>service mesh</strong> (Section 2.15) is built from; Envoy proxy is the canonical example.</li>
+<li><strong>Saga pattern</strong> — the microservices answer to "how do I do a multi-step transaction when each step lives in a different service's database and 2PC is off the table." A saga is a sequence of local transactions, each publishing an event that triggers the next step; if a step fails, previously completed steps run <strong>compensating transactions</strong> to undo their effect (e.g., "refund payment" compensates "charge card"). Two coordination styles: <strong>choreography</strong> (each service listens for events and decides what to do next — no central brain, but harder to see the whole flow) and <strong>orchestration</strong> (a central saga orchestrator explicitly calls each step and handles failures — easier to reason about, but a new single component to keep highly available).</li>
+<li><strong>Outbox pattern</strong> — solves a narrower but very common version of the same problem: how do you update your database <em>and</em> publish an event, atomically, without a distributed transaction? Write the event into an <code>outbox</code> table in the <em>same local transaction</em> as the business-data change, then have a separate relay process (often a CDC connector, immediately below) read the outbox and publish to the broker. This guarantees "the event is published if and only if the transaction committed," which a direct "write to DB, then call the broker" sequence cannot guarantee — either step can fail independently and leave the two out of sync.</li>
+<li><strong>Inbox pattern (the consumer-side twin of Outbox)</strong> — the same guarantee is needed on the receiving end: track processed message IDs in an <code>inbox</code> table (or a unique constraint on an event-ID column) so a redelivered message is recognized and skipped rather than reprocessed. This is one concrete implementation of the idempotent-consumer idea from Section 2.7.</li>
+<li><strong>Change Data Capture (CDC)</strong> — rather than hand-writing the outbox relay, a CDC tool (Debezium is the standard open-source answer) tails a database's own replication/commit log and turns every row change into an event stream automatically. This is now the default way production systems keep a search index, a cache, or a downstream analytics store in sync with a system-of-record database, without the application ever explicitly publishing "I changed a row."</li>
+</ul>
+<div class="sd-remarks-slot" data-key="21-architecture-styles"></div>
+<h3 id="22-client-api-layer"><span class="sd-slot" data-key="22-client-api-layer"></span><span class="sec-num">2.2</span>Client &amp; API Layer</h3>
+<ul>
+<li><strong>Web and mobile clients</strong> — the same backend increasingly serves both; a <strong>Backend-for-Frontend (BFF)</strong> layer is a common pattern when mobile and web need meaningfully different response shapes or aggregation logic.</li>
+<li><strong>API Gateway</strong> — a single entry point in front of your services that handles routing, authentication, rate limiting, request/response transformation, and sometimes protocol translation (public REST in, internal gRPC out). Almost every microservices design should have one — it's the answer to "how do clients avoid knowing about 40 internal services."</li>
+</ul>
+<p><strong>Choosing an API style:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Style</th>
+<th>Model</th>
+<th>Best for</th>
+<th>Watch-outs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>REST</strong></td>
+<td>Resources + standard HTTP verbs (GET/POST/PUT/DELETE), typically JSON</td>
+<td>Public APIs, simple CRUD, wide client compatibility, easy HTTP-level caching</td>
+<td>Over- or under-fetching — a mobile client often gets more fields than it needs, or needs three round trips to assemble one screen</td>
+</tr>
+<tr>
+<td><strong>GraphQL</strong></td>
+<td>Clients specify exactly the fields/shape they want in a single query</td>
+<td>Mobile clients with limited bandwidth, products with many client types wanting different data shapes</td>
+<td>Harder to cache at the HTTP layer; a naive resolver can trigger the "N+1 query" problem; more server-side complexity</td>
+</tr>
+<tr>
+<td><strong>gRPC</strong></td>
+<td>Contract-first via Protocol Buffers, HTTP/2 transport, strongly typed, supports bidirectional streaming</td>
+<td>Internal service-to-service calls at high throughput/low latency; polyglot microservices</td>
+<td>Not naturally browser-native (needs gRPC-Web); binary format is harder to debug by eye than JSON</td>
+</tr>
+<tr>
+<td><strong>SOAP</strong></td>
+<td>XML-based, heavily specified (WS-* standards), built-in transactional/security standards</td>
+<td>Legacy enterprise systems, banking/financial integrations with strict contracts</td>
+<td>Verbose, slower to parse, largely legacy at this point</td>
+</tr>
+<tr>
+<td><strong>WebSocket</strong></td>
+<td>Persistent, full-duplex connection</td>
+<td>Real-time bidirectional needs — chat, live dashboards, multiplayer</td>
+<td>Keeps a connection (and server resources) open per client — a scalability cost REST doesn't have; needs its own connection-lifecycle and reconnection handling</td>
+</tr>
+<tr>
+<td><strong>Long polling</strong></td>
+<td>Client sends a request; server <em>holds it open</em> without responding until new data exists (or a timeout), then the client immediately re-requests</td>
+<td>A simple stand-in for real-time updates on infrastructure that doesn't support persistent connections well (older load balancers, restrictive corporate firewalls)</td>
+<td>Each pending request still ties up a server-side connection/thread while waiting, and it's strictly worse than WebSocket/SSE wherever those are actually available — treat it as a fallback, not a first choice</td>
+</tr>
+<tr>
+<td><strong>Webhook</strong></td>
+<td>Server calls <em>you</em> back via an HTTP POST when an event happens ("reverse API")</td>
+<td>Async integrations with third parties (payment confirmation, CI/CD triggers)</td>
+<td>You must handle retries, duplicate deliveries (idempotency again), and provide a fallback poll for "what if the callback never arrives"</td>
+</tr>
+<tr>
+<td><strong>Server-Sent Events (SSE)</strong></td>
+<td>One-way persistent stream, server → client, over plain HTTP</td>
+<td>Live feeds, notifications, streaming an LLM's token-by-token output</td>
+<td>Simpler than WebSocket when you only need one direction — this is why most AI chat UIs stream responses over SSE rather than WebSocket</td>
+</tr>
+</tbody>
+</table>
+<p>A useful rule of thumb repeated across the 2026 course updates: <strong>REST for anything public-facing or simple; gRPC for internal high-throughput service-to-service calls; GraphQL when your clients have very different data-shape needs; WebSocket/SSE when the interaction is inherently a live stream, not a request/response.</strong></p>
+<p><strong>Pagination — offset vs. cursor:</strong> <strong>offset pagination</strong> (<code>?page=4&amp;size=20</code>) is simple but breaks quietly under concurrent writes — if a row is inserted or deleted while a user is paging through, later pages skip or repeat items, since "page 4" is a moving target defined purely by position. <strong>Cursor pagination</strong> (<code>?after=eyJpZCI6...</code>) encodes an opaque pointer to the last-seen item's stable sort key, so a page is defined relative to actual data rather than a row count, and stays correct under concurrent inserts/deletes. Cursor pagination is the standard answer for any feed, timeline, or large/frequently-changing result set; offset is fine for small, relatively static admin-style listings.</p>
+<p><strong>A concrete API contract, worked through</strong> (illustrating idempotency keys and response shape together, since this is easier to internalize from one example than from a description):</p>
+<pre><code class="language-http">POST /v1/urls
+Idempotency-Key: 7c1e2f-a91b-44d0
+Content-Type: application/json
+
+{ "long_url": "https://example.com/a-very-long-article-path" }
+</code></pre>
+<pre><code class="language-json">{
+  "short_code": "aZ91k",
+  "short_url": "https://short.example/aZ91k",
+  "expires_at": null
+}
+</code></pre>
+<p>A retried request carrying the same <code>Idempotency-Key</code> returns this exact same response without creating a second record — the server stores (key → result) the first time and replays it on any repeat, which is the concrete mechanism behind the idempotency concept in Section 2.7.</p>
+<div class="sd-remarks-slot" data-key="22-client-api-layer"></div>
+<h3 id="23-networking-fundamentals"><span class="sd-slot" data-key="23-networking-fundamentals"></span><span class="sec-num">2.3</span>Networking Fundamentals</h3>
+<ul>
+<li><strong>OSI model (7 layers)</strong> vs. <strong>TCP/IP model (4 layers)</strong> — you won't be asked to recite every layer, but you should recognize that HTTP lives at the <strong>application layer</strong>, TCP/UDP at the <strong>transport layer</strong>, and IP at the <strong>network layer</strong>, because load balancer "Layer 4 vs. Layer 7" terminology (Section 2.4) refers directly to this stack.</li>
+<li><strong>TCP</strong> — connection-oriented, reliable, ordered, retransmits lost packets. Cost: more overhead and latency than UDP. Used for anything where correctness beats speed (web pages, email, file transfer).</li>
+<li><strong>UDP</strong> — connectionless, no delivery guarantee, no ordering guarantee, minimal overhead. Used where low latency matters more than perfect delivery (live video/audio, gaming, DNS lookups).</li>
+<li><strong>HTTP/HTTPS</strong> — HTTP is stateless by design (hence cookies/tokens for session state); HTTPS adds TLS encryption. HTTP/2 added multiplexing (many requests over one connection) and header compression; HTTP/3 (QUIC) moves the transport onto UDP to avoid TCP head-of-line blocking entirely.</li>
+<li><strong>WebSocket</strong> — upgrades an HTTP connection to a persistent, bidirectional socket; see 2.2.</li>
+</ul>
+<p><strong>Proxies:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Sits between...</th>
+<th>Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Forward proxy</strong></td>
+<td>Client and the wider internet</td>
+<td>Corporate networks controlling/monitoring outbound traffic, hiding client identity from the destination</td>
+</tr>
+<tr>
+<td><strong>Reverse proxy</strong></td>
+<td>External clients and internal servers</td>
+<td>Load balancing, TLS termination, caching, hiding internal topology from the outside world — nginx, Cloudflare, and most load balancers act as reverse proxies</td>
+</tr>
+</tbody>
+</table>
+<p><strong>DNS — how a domain name becomes an IP address:</strong></p>
+<ol>
+<li>Browser checks its local cache → OS cache → router cache.</li>
+<li>On a miss, the query goes to a <strong>recursive resolver</strong> (typically run by your ISP).</li>
+<li>Resolver asks a <strong>root server</strong> → directed to the right <strong>TLD server</strong> (<code>.com</code>, <code>.org</code>) → directed to the domain's <strong>authoritative name server</strong>, which returns the actual IP.</li>
+<li>The result is cached at every layer along the way, governed by a <strong>TTL</strong> on the DNS record.</li>
+</ol>
+<p><strong>Common DNS record types:</strong> <code>A</code> (domain → IPv4), <code>AAAA</code> (→ IPv6), <code>CNAME</code> (alias to another domain name), <code>MX</code> (mail server), <code>NS</code> (authoritative name server), <code>TXT</code> (arbitrary text, often used for domain verification). <strong>Split-horizon DNS</strong> — the same domain name resolves to different answers depending on who's asking (an internal resolver returns a private IP for internal clients; the public internet gets a public-facing IP) — is a small but occasionally-tested detail worth recognizing, used for exposing internal-only services under the same domain scheme as public ones.</p>
+<p><strong>DNS as a load-balancing and failover tool (Route 53-style routing policies):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Policy</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Simple</td>
+<td>One resource, optionally multiple values returned</td>
+</tr>
+<tr>
+<td>Weighted</td>
+<td>Split traffic across resources by a configured proportion (canary releases, A/B infra tests)</td>
+</tr>
+<tr>
+<td>Latency-based</td>
+<td>Route to the region with the lowest latency for that user</td>
+</tr>
+<tr>
+<td>Geolocation / Geoproximity</td>
+<td>Route by the user's location, optionally shifting the boundary between regions</td>
+</tr>
+<tr>
+<td>Failover</td>
+<td>Primary/secondary — reroute automatically when health checks fail</td>
+</tr>
+<tr>
+<td>Multivalue</td>
+<td>Return several healthy IPs, checked for health before being returned</td>
+</tr>
+</tbody>
+</table>
+<div class="sd-remarks-slot" data-key="23-networking-fundamentals"></div>
+<h3 id="24-load-traffic-management"><span class="sd-slot" data-key="24-load-traffic-management"></span><span class="sec-num">2.4</span>Load &amp; Traffic Management</h3>
+<p><strong>Load balancers</strong> sit in front of a pool of servers and distribute incoming requests so no single server is overwhelmed. They can live in several places in a stack: between client and server, between servers and internal app/job servers, or between app servers and cache/database layers.</p>
+<p><strong>By network layer:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>OSI layer</th>
+<th>Decision made on</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>L4 (Network Load Balancer)</strong></td>
+<td>Transport</td>
+<td>IP + port, TCP/UDP info</td>
+<td>Very high throughput (millions of req/s), doesn't inspect payload, so it can't route on URL path or headers</td>
+</tr>
+<tr>
+<td><strong>L7 (Application Load Balancer)</strong></td>
+<td>Application</td>
+<td>HTTP headers, cookies, URL path, request body</td>
+<td>Enables content-based routing ("/api/<em> → service A, /static/</em> → CDN") at the cost of more per-request processing</td>
+</tr>
+<tr>
+<td><strong>GSLB (Global Server Load Balancing)</strong></td>
+<td>—</td>
+<td>Geography + health</td>
+<td>Distributes traffic across data centers/regions, usually built on DNS-level routing</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Load-balancing algorithms:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>How it picks a server</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Round robin</td>
+<td>Cycles through servers in order</td>
+<td>Uniform servers, uniform request cost</td>
+</tr>
+<tr>
+<td>Weighted round robin</td>
+<td>Round robin, but bigger servers get proportionally more requests</td>
+<td>Heterogeneous server capacity</td>
+</tr>
+<tr>
+<td>Least connections</td>
+<td>Sends to whichever server currently has the fewest open connections</td>
+<td>Highly variable request duration (DB connections, WebSockets)</td>
+</tr>
+<tr>
+<td>Hashing (consistent hash of IP/URL)</td>
+<td>Same client/key always routes to the same server</td>
+<td>Session persistence, or maximizing cache-hit rate per server</td>
+</tr>
+<tr>
+<td>Least bandwidth</td>
+<td>Sends to the server currently moving the least data</td>
+<td>Streaming/bandwidth-heavy workloads</td>
+</tr>
+</tbody>
+</table>
+<p>Load balancers themselves need to scale: <strong>vertically</strong> (bigger box), <strong>horizontally</strong> (a pool of LBs, often fronted by DNS round robin so each public IP maps to a highly-available LB pair), and they typically lean on a <strong>service registry</strong> (e.g., ZooKeeper, Consul, or a cloud-native equivalent) to track which backend instances are currently healthy — tracking that metadata directly inside the load balancer doesn't scale. Two operational details worth naming alongside health checks: <strong>connection draining</strong> (when an instance is being removed — a deploy, a scale-down — stop routing <em>new</em> requests to it but let its already-in-flight requests finish naturally, rather than cutting them off mid-response) and <strong>sticky sessions</strong> (routing a given client to the same backend instance for the duration of a session, via a cookie or the hashing algorithm above — useful for stateful backends, but a stopgap; Section 2.16's stateless-services principle is the more durable fix).</p>
+<p><strong>CDN (Content Delivery Network)</strong> — a globally distributed network of edge servers that cache content physically close to users. Components: <strong>edge servers</strong> (cache + serve), <strong>origin server</strong> (source of truth), <strong>PoPs</strong> (points of presence — clusters of edge servers per region). Two delivery models: <strong>push CDN</strong> (you upload content ahead of time — more control, more manual work) and <strong>pull CDN</strong> (the CDN fetches and caches on first request — less manual work, a cold first request is slower). CDNs solve four problems at once: latency (physical distance), origin bandwidth cost, traffic spikes, and — via built-in WAF/DDoS mitigation — a chunk of your security surface. Two refinements worth naming for anything beyond the basics: an <strong>origin shield</strong> — one additional caching layer sitting between the many edge PoPs and the origin, so a viral piece of content causes at most one cache-miss request per region to reach the origin, rather than every individual edge location missing independently and hammering it simultaneously; and <strong>signed URLs</strong> — a time-limited, cryptographically-signed link for content that shouldn't be freely cacheable/public (a private video, a paid download), letting the CDN still cache and serve the bytes efficiently while the origin retains control over <em>who</em> is allowed to fetch them and <em>until when</em>.</p>
+<p><strong>Rate limiting</strong> protects a system from being overwhelmed (accidentally or maliciously) by capping how many requests an identity can make per time window.</p>
+<table>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>Mechanism</th>
+<th>Burst handling</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Fixed window counter</strong></td>
+<td>Count requests in discrete windows (e.g., per minute); reset at boundary</td>
+<td>Poor — allows up to 2× the limit right at a window boundary</td>
+<td>Simple, low-stakes internal limits</td>
+</tr>
+<tr>
+<td><strong>Sliding window log</strong></td>
+<td>Keep a timestamp log of every request, count how many fall in the trailing window</td>
+<td>Excellent precision</td>
+<td>Strict fairness enforcement, but memory-heavy at scale</td>
+</tr>
+<tr>
+<td><strong>Sliding window counter</strong></td>
+<td>Weighted average of the current and previous fixed windows</td>
+<td>Good precision, moderate memory</td>
+<td>Scalable public APIs — the practical default at scale</td>
+</tr>
+<tr>
+<td><strong>Token bucket</strong></td>
+<td>Bucket holds tokens that refill at a fixed rate; each request consumes one; empty bucket = reject/delay</td>
+<td>Allows controlled bursts up to the bucket size</td>
+<td>The most common default for developer-facing APIs</td>
+</tr>
+<tr>
+<td><strong>Leaky bucket</strong></td>
+<td>Requests queue and drain at a constant rate regardless of arrival burstiness</td>
+<td>None by design — smooths output</td>
+<td>Protecting a downstream system that needs a steady, predictable load (payment processing, DB writes)</td>
+</tr>
+</tbody>
+</table>
+<p>In a distributed rate limiter (multiple API gateway nodes, not one), the counter state has to live somewhere shared — typically Redis, using atomic increment operations (or a Lua script, since Redis executes each script atomically, closing the check-then-increment race a naive <code>GET</code> + <code>INCR</code> pair would otherwise have), so two nodes can't both think a client has quota left. A rejected request returns <strong><code>429 Too Many Requests</code></strong> with a <code>Retry-After</code> header, and well-behaved APIs also return <code>X-RateLimit-Limit</code> / <code>X-RateLimit-Remaining</code> / <code>X-RateLimit-Reset</code> on every response (accepted or not) so clients can self-throttle before they ever get rejected. Enforcement is rarely single-level in practice: a cheap, approximate per-IP check at the edge/CDN, a more accurate per-user check at the API gateway, and a business-specific per-endpoint check inside the service itself.</p>
+<p><strong>Autoscaling</strong> — automatically add/remove compute based on load (CPU, queue depth, custom metrics), usually with a cooldown to avoid thrashing.</p>
+<p><strong>Backpressure</strong> — when a downstream component can't keep up, it needs a way to signal "slow down" upstream rather than silently dropping work or falling over. Options, roughly from least to most disruptive: buffer with a bounded queue, apply rate limiting to the producer, shed load intentionally (drop low-priority requests first), or block/deny new requests outright once queues are full.</p>
+<div class="sd-remarks-slot" data-key="24-load-traffic-management"></div>
+<h3 id="25-data-layer"><span class="sd-slot" data-key="25-data-layer"></span><span class="sec-num">2.5</span>Data Layer</h3>
+<p><strong>Relational (SQL) databases</strong> store data in tables with fixed schemas and relationships enforced via keys. They're typically <strong>ACID</strong>-compliant:</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Guarantee</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Atomicity</strong></td>
+<td>A transaction's operations all succeed or all roll back — no partial writes</td>
+</tr>
+<tr>
+<td><strong>Consistency</strong></td>
+<td>A transaction moves the database from one valid state to another, respecting all constraints</td>
+</tr>
+<tr>
+<td><strong>Isolation</strong></td>
+<td>Concurrent transactions don't see each other's intermediate, uncommitted state</td>
+</tr>
+<tr>
+<td><strong>Durability</strong></td>
+<td>Once committed, a write survives a crash or power loss</td>
+</tr>
+</tbody>
+</table>
+<p>Examples: PostgreSQL, MySQL, SQL Server, Aurora. Best when relationships between entities are central to the data, and schema is relatively stable.</p>
+<p><strong>NoSQL databases</strong> trade some of the above for flexibility and horizontal scalability. Five families, each solving a different access pattern:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Model</th>
+<th>Example systems</th>
+<th>Best for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Key-value</strong></td>
+<td>Simple key → opaque value lookup, extremely fast reads/writes</td>
+<td>Redis, Memcached, DynamoDB</td>
+<td>Session storage, user preferences, caching</td>
+</tr>
+<tr>
+<td><strong>Document</strong></td>
+<td>JSON/BSON-like nested documents, queryable and indexable on nested fields</td>
+<td>MongoDB, DocumentDB</td>
+<td>General-purpose app data that doesn't fit rigid tables well</td>
+</tr>
+<tr>
+<td><strong>Wide-column / columnar</strong></td>
+<td>Rows with flexible columns, grouped in column families; excellent for aggregation over one column across many rows</td>
+<td>Cassandra, HBase, Redshift, Snowflake, BigQuery</td>
+<td>High-write-throughput workloads (Cassandra) or analytics/BI over huge datasets (Redshift/BigQuery)</td>
+</tr>
+<tr>
+<td><strong>Graph</strong></td>
+<td>Nodes + first-class relationship edges, optimized for traversal</td>
+<td>Neo4j, Amazon Neptune</td>
+<td>Social graphs, recommendation engines, fraud-ring detection — anywhere "how are these connected" beats "join these tables"</td>
+</tr>
+<tr>
+<td><strong>Text-search</strong></td>
+<td>Inverted index over document text, supports fuzzy/semantic matching, built on libraries like Lucene</td>
+<td>Elasticsearch, Apache Solr</td>
+<td>Full-text search, log analytics</td>
+</tr>
+</tbody>
+</table>
+<p>Also worth naming: <strong>time-series databases</strong> (InfluxDB, TimescaleDB) — optimized for (timestamp, value) pairs at huge write volume with time-range queries, used for IoT and monitoring data; and <strong>object storage</strong> (S3, GCS, Azure Blob) — flat key → blob storage for large unstructured files (images, video, backups), not a database in the traditional sense but almost always part of a modern architecture (Section 3, Group G, covers S3's internals).</p>
+<p><strong>SQL vs. NoSQL decision guide:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Choose SQL when...</th>
+<th>Choose NoSQL when...</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Relationships between entities matter and need to stay consistent (transfers, inventory, bookings)</td>
+<td>Access pattern is a simple key lookup at very high volume</td>
+</tr>
+<tr>
+<td>You need multi-row ACID transactions</td>
+<td>Schema will change frequently, or data is naturally nested/document-shaped</td>
+</tr>
+<tr>
+<td>Your query patterns are ad hoc and varied</td>
+<td>You know your query patterns up front and need to shard cheaply for scale</td>
+</tr>
+<tr>
+<td>Data volume fits on a well-tuned single cluster with read replicas</td>
+<td>You need to scale writes horizontally across many commodity nodes from day one</td>
+</tr>
+</tbody>
+</table>
+<p>Modern databases blur this line deliberately: Postgres and MySQL both support native JSON columns and horizontal sharding extensions; MongoDB supports multi-document transactions. Don't present SQL vs. NoSQL as a hard binary in an interview — present it as a spectrum, and justify your pick by the access pattern, not the label.</p>
+<p><strong>OLTP vs. OLAP</strong> is a second, orthogonal axis worth naming explicitly rather than folding silently into "SQL vs. NoSQL": <strong>OLTP (Online Transaction Processing)</strong> systems (Postgres, MySQL, DynamoDB) are optimized for many small, fast, concurrent reads/writes of individual records — the day-to-day operational path. <strong>OLAP (Online Analytical Processing)</strong> systems (Redshift, BigQuery, Snowflake, ClickHouse) are optimized for the opposite shape entirely: infrequent but huge queries that scan and aggregate across millions of rows for one or a handful of columns, typically stored <strong>columnar</strong> rather than row-oriented so a "sum this one column across a billion rows" query never has to read the columns it doesn't need. Running analytics queries against your OLTP database directly is a common early-scaling mistake — the fix is a pipeline (often the CDC or Outbox mechanism below) that continuously copies data from the OLTP system into a dedicated OLAP store, so a slow analytical query can never compete with production traffic for the same resources.</p>
+<p><strong>How OLAP data is actually modeled and stored</strong>, two details worth knowing by name beyond "it's columnar":</p>
+<ul>
+<li><strong>Star and snowflake schemas</strong> — the standard way analytical data is modeled: one large <strong>fact table</strong> at the center (one row per event — a sale, a click, a play) with foreign keys out to smaller <strong>dimension tables</strong> (product, customer, date, region) that hold the descriptive attributes. A <strong>star schema</strong> keeps dimensions fully denormalized (flat, one level); a <strong>snowflake schema</strong> normalizes dimensions further into sub-dimensions (a product dimension pointing to a separate brand dimension) — trading a little query simplicity for less redundancy. Almost every "design a metrics/analytics pipeline" follow-up question about "how is the data actually modeled once it lands in the warehouse" is answered by naming this pattern.</li>
+<li><strong>Column compression</strong> — storing each column contiguously (columnar storage) doesn't just let a query skip unwanted columns, it also makes compression dramatically more effective: a column of repeated or low-cardinality values (a <code>status</code> column with 5 possible values across a billion rows) compresses far better sitting next to millions of copies of itself than interleaved with unrelated columns from the same row. <strong>Bitmap encoding</strong> (one bit-vector per distinct value, marking which rows contain it) is the classic technique this enables, turning "how many rows have <code>status = shipped</code>" into a fast bitwise population-count instead of a row-by-row scan.</li>
+</ul>
+<p><strong>Multi-tenancy</strong> — when one system serves many independent customers ("tenants," common in B2B SaaS), the data layer has to decide how much isolation each tenant gets, and it's a spectrum rather than one right answer: <strong>shared database, shared schema</strong> (every table has a <code>tenant_id</code> column; cheapest to run and easiest to scale the fleet, but a query missing a <code>tenant_id</code> filter is a real data-leak risk, and one tenant's usage spike can degrade performance for every other tenant sharing the same database); <strong>shared database, separate schema per tenant</strong> (stronger isolation, still one database to operate); <strong>separate database per tenant</strong> (strongest isolation and the easiest to reason about for compliance, at real operational cost — migrations, backups, and scaling all now happen per-tenant instead of once). A reasonable default answer: shared schema with <code>tenant_id</code> for most tenants, with an escape hatch to a dedicated database for the largest or most compliance-sensitive customers — a pattern SaaS companies commonly call a "pool vs. silo" model.</p>
+<p><strong>Caching</strong> — storing a copy of data in a faster medium to avoid repeating expensive work.</p>
+<p><em>Where a cache lives:</em></p>
+<ul>
+<li><strong>Client-side</strong> — browser/app cache for static assets.</li>
+<li><strong>Application-server cache</strong> — in-process memory on a single node; simplest, but doesn't help once you have multiple app servers (each has its own cache, so hit rate suffers and each miss still hits the DB).</li>
+<li><strong>Distributed cache</strong> — a cache cluster (e.g., Redis Cluster) that all app servers share, typically partitioned via consistent hashing so each node owns a slice of the keyspace.</li>
+<li><strong>Global cache</strong> — one centralized cache all nodes hit; simpler mental model, but the cache itself becomes a bottleneck/single point of failure unless it's also made highly available.</li>
+<li><strong>CDN</strong> — see 2.4; effectively a geographically-distributed cache for content.</li>
+</ul>
+<p><em>Cache population strategies:</em></p>
+<table>
+<thead>
+<tr>
+<th>Strategy</th>
+<th>How it works</th>
+<th>Trade-off</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cache-aside (lazy loading)</strong></td>
+<td>App checks cache; on a miss, reads from DB and populates the cache itself</td>
+<td>Only requested data is cached; a cache failure just degrades to slower reads, doesn't break writes</td>
+</tr>
+<tr>
+<td><strong>Read-through</strong></td>
+<td>The cache library sits in front of the DB and populates itself transparently on a miss</td>
+<td>Simpler application code; cache and DB access are more tightly coupled</td>
+</tr>
+<tr>
+<td><strong>Write-through</strong></td>
+<td>Every write goes to the cache and the DB synchronously</td>
+<td>Cache is always fresh, but every write pays the latency of both writes</td>
+</tr>
+<tr>
+<td><strong>Write-behind (write-back)</strong></td>
+<td>Write hits the cache immediately, then is flushed to the DB asynchronously</td>
+<td>Fast writes, but a cache crash before flush can lose data</td>
+</tr>
+<tr>
+<td><strong>Write-around</strong></td>
+<td>Write goes directly to the DB, bypassing the cache entirely</td>
+<td>Good for data written once and rarely re-read soon after (avoids polluting the cache with write-only data); the next read is a guaranteed miss</td>
+</tr>
+<tr>
+<td><strong>Refresh-ahead</strong></td>
+<td>The cache proactively re-fetches a popular entry shortly before its TTL expires, rather than waiting for a request to trigger the refresh</td>
+<td>Keeps hot keys perpetually warm, directly preventing the thundering-herd scenario below — the cost is guessing which keys are worth refreshing speculatively</td>
+</tr>
+</tbody>
+</table>
+<p><em>Eviction policies</em> (what to remove when the cache is full): <strong>LRU</strong> (Least Recently Used — the default choice in most systems), <strong>LFU</strong> (Least Frequently Used — better when popularity is more stable than recency), <strong>FIFO</strong>, <strong>Random Replacement</strong> (simplest to implement, surprisingly competitive when access patterns are close to uniform).</p>
+<p><em>Cache invalidation</em> — the harder half of "there are only two hard problems in computer science": a TTL handles staleness passively; explicit invalidation (delete/update the cache entry the moment the source changes) handles it actively. Most production systems use both — a TTL as a safety net, explicit invalidation for anything user-visible and time-sensitive (a price change, a profile update).</p>
+<p><strong>The three named cache failure modes</strong> — asked about constantly, specifically because each looks identical from the outside ("the database is suddenly overloaded") but has a different root cause and fix:</p>
+<table>
+<thead>
+<tr>
+<th>Failure mode</th>
+<th>What's actually happening</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cache penetration</strong></td>
+<td>Requests repeatedly ask for a key that <strong>doesn't exist in the database at all</strong>, so every request is guaranteed to miss the cache and hit the DB — often malicious (probing for valid IDs) or a client bug</td>
+<td>Cache the negative result too (a short-TTL "not found" marker), and/or put a <strong>Bloom filter</strong> in front of the DB so a definite-absent key is rejected before it ever reaches storage</td>
+</tr>
+<tr>
+<td><strong>Cache breakdown</strong> (a.k.a. thundering herd, or dogpile)</td>
+<td>One specific <strong>hot</strong> key expires, and the flood of requests that were all being served from cache now all hit the database <strong>simultaneously</strong> for that one key</td>
+<td>A mutex/<strong>single-flight</strong> per key (the first request to miss recomputes the value; concurrent requests for the same key wait on that one in-flight computation instead of each starting their own), or <strong>refresh-ahead</strong> so the key never actually goes cold</td>
+</tr>
+<tr>
+<td><strong>Cache avalanche</strong></td>
+<td><strong>Many</strong> keys expire at (or close to) the same moment — often because they were all set with the same TTL at the same time, or because the cache node/cluster itself went down</td>
+<td>Randomize/jitter TTLs so keys don't expire in lockstep; keep a multi-tier cache (a second cache layer, or the origin behind a circuit breaker) so a cold cache degrades gracefully instead of transferring 100% of load to the database instantly</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The hot-key problem</strong> is the more general version of cache breakdown, and shows up anywhere a partitioned system routes by key — not just caches: one key (a viral post, a celebrity's user ID, a popular product) receives wildly disproportionate traffic relative to every other key, so whichever single cache node or shard owns it becomes a bottleneck no matter how well the rest of the system is provisioned. The standard toolkit, roughly in order of how often each is reached for:</p>
+<ul>
+<li><strong>Local (in-process) caching</strong> of the single hottest few keys on every app server, so the vast majority of requests for that key never even reach the distributed cache tier.</li>
+<li><strong>Key salting / splitting</strong> — replicate the hot key's value under <code>key:0</code>, <code>key:1</code>, ... <code>key:9</code> across multiple shards, and have readers pick a suffix at random, turning one overloaded owner into ten evenly-loaded ones (writes now have to fan out to all the copies, which is the trade-off).</li>
+<li><strong>Request coalescing (single-flight)</strong> — the same mechanism used for cache breakdown above, applied generally: when many concurrent requests need the same not-yet-cached value, only one actually computes it; the rest wait on that result rather than each hitting the backing store independently.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="25-data-layer"></div>
+<h3 id="26-scalability"><span class="sd-slot" data-key="26-scalability"></span><span class="sec-num">2.6</span>Scalability</h3>
+<p><strong>Vertical scaling (scale up)</strong> — add more CPU/RAM/disk to an existing machine. Simple (no code changes), but has a hard ceiling (physical hardware limits) and a non-linear cost curve (the biggest machines cost disproportionately more per unit of capacity), and represents a single point of failure until you also add redundancy.</p>
+<p><strong>Horizontal scaling (scale out)</strong> — add more machines. Roughly linear cost scaling and no hard ceiling, but requires the workload to be splittable (often meaning stateless services), and adds real complexity: you now need a load balancer, service discovery, and distributed debugging.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Vertical</th>
+<th>Horizontal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Implementation effort</td>
+<td>Low</td>
+<td>Higher — needs load balancing, coordination</td>
+</tr>
+<tr>
+<td>Ceiling</td>
+<td>Hard limit (biggest available machine)</td>
+<td>Effectively unlimited</td>
+</tr>
+<tr>
+<td>Fault tolerance</td>
+<td>Single point of failure</td>
+<td>Built-in redundancy — one node's death doesn't stop the system</td>
+</tr>
+<tr>
+<td>Cost curve</td>
+<td>Non-linear, gets expensive fast</td>
+<td>Roughly linear</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The Scale Cube (AKF)</strong> is a useful three-axis way to organize <em>how</em> you scale out, beyond just "add more machines": the <strong>X-axis</strong> is cloning — running identical copies of the whole application behind a load balancer, the simplest form of horizontal scaling. The <strong>Y-axis</strong> is functional decomposition — splitting by responsibility (this is what turns a monolith into microservices, Section 2.1). The <strong>Z-axis</strong> is data partitioning — splitting by <em>some attribute of the data itself</em> (this is sharding, immediately below). Most real systems eventually combine all three; naming the axis explicitly is a fast way to signal that a scaling decision is deliberate rather than "just add servers."</p>
+<p><strong>Database replication</strong> — keeping copies of data across multiple nodes for availability, read scaling, and durability.</p>
+<ul>
+<li><strong>Leader-follower (primary-replica)</strong> — one node accepts writes; followers replicate from it and can serve reads. <strong>Synchronous</strong> replication guarantees followers are caught up before a write is acknowledged (strong consistency, higher write latency); <strong>asynchronous</strong> acknowledges the write immediately and replicates in the background (lower latency, a window where a follower can lag — and can lose the most recent writes if the leader dies before replicating them).</li>
+<li><strong>Multi-leader</strong> — each data center (or node) has its own leader, replicating asynchronously to the others. Enables local low-latency writes in each region, at the cost of needing conflict resolution when two leaders accept conflicting writes concurrently.</li>
+<li><strong>Leaderless replication</strong> — no single leader; a client writes to (and reads from) multiple replicas directly, reconciling via a <strong>quorum</strong> (e.g., write to W replicas, read from R replicas, where W + R &gt; total replicas guarantees overlap) and version metadata. Cassandra and Riak use this, propagating updates between replicas via a <strong>gossip protocol</strong> and resolving conflicting reads at read time (returning the most recent value and repairing stale replicas in the background).</li>
+<li><strong>Leader election</strong> for the failover case (promoting a new leader when the old one dies) is typically done via a consensus protocol — Raft, Paxos, or ZooKeeper's Zab — covered in 2.7.</li>
+</ul>
+<p><strong>Replication lag is a named problem, not just a vague "eventual consistency" wave of the hand</strong> — asynchronous leader-follower replication produces three specific, distinct user-facing symptoms, each with its own targeted fix, and naming which one a design is vulnerable to is worth more than saying "there might be some lag":</p>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>What the user sees</th>
+<th>Targeted fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Read-after-write (read-your-own-writes)</strong></td>
+<td>A user submits a change, then immediately reloads and doesn't see their own update, because the read hit a follower that hasn't caught up yet</td>
+<td>Route a user's reads of their <em>own</em> data to the leader (or a replica confirmed caught-up) for a short window right after they write — the same technique named in Section 2.11</td>
+</tr>
+<tr>
+<td><strong>Monotonic reads</strong></td>
+<td>A user reloads a page twice in quick succession and the second load shows <em>older</em> data than the first, because the two reads happened to land on two different followers at two different lag amounts</td>
+<td>Pin one user's reads to the same replica consistently (e.g., hash the user ID to pick a replica), so they can never see time run backward even if the whole system is eventually consistent</td>
+</tr>
+<tr>
+<td><strong>Consistent prefix reads</strong></td>
+<td>Replicated writes are applied out of causal order on a follower — an answer to a question appears to arrive before the question itself, because the two were written to different partitions and replicated independently</td>
+<td>Ensure causally-related writes are routed through the same partition/replication stream, so they're guaranteed to be applied everywhere in the order they actually happened</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Sharding (horizontal partitioning)</strong> — splitting one logical dataset across many physical nodes, each holding a subset of the rows. Sharding is a last resort, not a first move — try purging old data, archiving to cold storage, or simple denormalization first, since sharding is genuinely hard to undo.</p>
+<table>
+<thead>
+<tr>
+<th>Sharding strategy</th>
+<th>How keys map to shards</th>
+<th>Strength</th>
+<th>Weakness</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Key/hash-based</strong></td>
+<td><code>hash(key) % N</code> decides the shard</td>
+<td>Even distribution</td>
+<td>Adding/removing a shard reshuffles almost everything unless you use consistent hashing</td>
+</tr>
+<tr>
+<td><strong>Range-based</strong></td>
+<td>Contiguous key ranges go to the same shard (e.g., usernames A–P, Q–Z)</td>
+<td>Simple, efficient range queries</td>
+<td>Easily creates hot shards if the key distribution is skewed</td>
+</tr>
+<tr>
+<td><strong>Directory-based</strong></td>
+<td>A lookup service maps each key to its shard explicitly</td>
+<td>Most flexible — rebalancing is just updating the directory</td>
+<td>The directory itself is a new single point of failure/bottleneck</td>
+</tr>
+<tr>
+<td><strong>Vertical</strong></td>
+<td>Split by <em>column</em>, not row — different attributes of the same entity live in different shards</td>
+<td>Lets you apply different consistency/replication rules to critical vs. non-critical columns</td>
+<td>Queries needing columns from multiple shards get expensive</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Partitioning secondary indexes</strong> is the sharding question interviewers reach for once the primary-key case feels solved, precisely because the obvious answer ("just shard like before") doesn't actually work — a secondary index (e.g., "find all cars where <code>color = red</code>," when the data is sharded by <code>car_id</code>) doesn't share the partitioning key, so it can't just live on one shard. Two real strategies, each with an opposite trade-off:</p>
+<ul>
+<li><strong>Document-partitioned (local) index</strong> — each shard maintains its own secondary index, covering only the data that shard already holds. Writes stay local and cheap (touch one shard), but a query has to <strong>scatter-gather</strong> — fan out to every shard, since the matching rows could be on any of them — which is exactly the scatter-gather pattern already named in the Web Crawler/search-engine and Leaderboard case studies (Part III), recurring here for the same underlying reason.</li>
+<li><strong>Term-partitioned (global) index</strong> — the secondary index itself is partitioned separately, by the <em>indexed value</em> rather than by the primary key (e.g., all <code>color = red</code> entries live together, on whatever shard owns that term, regardless of which shard the underlying car row lives on). Reads become efficient (query one or a few index shards directly, no scatter-gather), but writes get more expensive and slower — updating one row's indexed field means writing to a <em>different</em>, remote shard than the one holding the row itself, and that write typically can't be made part of the same local transaction, pushing the design toward eventual consistency between the row and its own index entry.</li>
+</ul>
+<p><strong>Rebalancing</strong> — redistributing data as shards are added/removed. Good rebalancing minimizes data movement, keeps the system available for reads/writes throughout, and results in a fair distribution afterward. Naive <code>hash % N</code> fails this badly (changing N reshuffles nearly every key) — which is exactly the problem consistent hashing exists to solve.</p>
+<p><strong>Choosing a shard key</strong> is arguably the single highest-stakes decision in this whole section, since it's expensive to change later. A good shard key has: <strong>high cardinality</strong> (enough distinct values to spread across many shards — a boolean <code>is_active</code> column makes a terrible shard key, since it only ever produces two shards' worth of distribution); <strong>even distribution</strong> (no single value dominates the dataset); <strong>query locality</strong> (the application's actual queries can be answered by hitting one or a few shards, not by fanning out to all of them); and <strong>low hot-spot risk</strong> going forward, not just today. Common traps: a <strong>monotonically increasing key</strong> (an auto-incrementing ID, or a plain timestamp) concentrates all <em>new</em> writes onto whichever shard currently owns the highest range — every write lands on the same "hot" shard even though the key technically has high cardinality; and a field that's frequently used as an exact-match filter in queries (like <code>country</code> for a global product with a US-heavy user base) can look high-cardinality in theory while being wildly skewed in practice.</p>
+<p><strong>Consistent hashing</strong> — the single most-tested HLD concept across every major course. Servers and keys are both hashed onto positions on a conceptual ring (0 to 2^32, typically); a key belongs to the first server found walking clockwise from its position. When a server is added or removed, only the keys between it and its immediate neighbor on the ring move — everything else stays put. Compare this to naive modulo hashing, where adding one server reshuffles nearly the entire keyspace. In practice, each physical server is usually mapped to many points on the ring (<strong>virtual nodes</strong>) so that load stays balanced even with a small number of physical servers, and so that when one server fails, its load is spread across many other servers rather than dumped entirely on one neighbor. Used by Cassandra and DynamoDB (data partitioning), CDNs (routing to edge caches), and hash-based load balancers (session persistence).</p>
+<div class="sd-remarks-slot" data-key="26-scalability"></div>
+<h3 id="27-distributed-systems"><span class="sd-slot" data-key="27-distributed-systems"></span><span class="sec-num">2.7</span>Distributed Systems</h3>
+<p><strong>Why distributed systems exist:</strong> a single machine has hard limits on processing power, storage, and traffic it can absorb. Splitting work across many machines that cooperate to appear as one system to the end user buys you <strong>scalability</strong> (handle more load), <strong>reliability</strong> (keep working when a component fails), and often lower latency (place data close to users) — at the cost of a category of new problems single-machine systems never had.</p>
+<p><strong>The CAP theorem</strong> — in the presence of a network partition, a distributed system must choose between:</p>
+<ul>
+<li><strong>Consistency</strong> — every read reflects the most recent write (all nodes agree).</li>
+<li><strong>Availability</strong> — every request receives a (non-error) response, even if it isn't the most recent data.</li>
+<li><strong>Partition tolerance</strong> — the system keeps functioning despite dropped/delayed messages between nodes.</li>
+</ul>
+<p>Because network partitions are a physical inevitability in any real distributed system, <strong>P is not optional</strong> — the real, practical choice is CP vs. AP when a partition occurs.</p>
+<table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Behavior during a partition</th>
+<th>Real examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>CP</strong></td>
+<td>Reject requests that can't be guaranteed consistent</td>
+<td>MongoDB (configurable, but defaults toward consistency — rejects writes it can't safely replicate), most traditional banking ledgers</td>
+</tr>
+<tr>
+<td><strong>AP</strong></td>
+<td>Keep answering with best-available (possibly stale) data</td>
+<td>Cassandra, DNS — a DNS resolver would rather answer with a slightly stale record than refuse to resolve a domain at all</td>
+</tr>
+<tr>
+<td><strong>CA</strong></td>
+<td>Both — only really achievable when there's no partition to tolerate, i.e., a single node or single-datacenter system</td>
+<td>A non-distributed MySQL instance</td>
+</tr>
+</tbody>
+</table>
+<p>A good interview answer names the <em>business</em> reason for the choice, not just the label: a bank balance transfer favors consistency (an incorrect balance is a real financial/legal problem); a social feed favors availability (a slightly stale like-count is invisible to the user, but an error page isn't).</p>
+<p><strong>PACELC</strong> extends CAP to cover the other 99.9% of the time — the moments when there <strong>isn't</strong> a partition happening at all, which CAP simply has nothing to say about. It reads: <strong>if there's a Partition, choose Availability or Consistency (that's plain CAP); Else (normal operation), choose Latency or Consistency.</strong> This matters because a system can be perfectly healthy, with no partition in sight, and still choose to serve a slightly-stale read from a nearby replica rather than pay the round-trip latency to confirm it against the leader — that's a PACELC trade-off, not a CAP one, and it's the more common decision a real system actually makes day to day. Naming PACELC specifically (rather than stretching CAP to cover it) is a small but reliable signal of depth.</p>
+<p><strong>Distributed clocks</strong>, briefly — never trust wall-clock timestamps alone to order events across machines, because clocks drift (clock skew) and NTP corrections can even move a clock backward. <strong>Lamport clocks</strong> provide a simple logical ordering (a counter incremented on every event, carried along with messages) sufficient to say "A happened before B," without capturing full causality between independent branches. <strong>Vector clocks</strong> (used in the Key-Value Store case study, Part III) extend this to detect concurrent, causally-unrelated writes, at the cost of a vector that grows with the number of nodes. <strong>Hybrid Logical Clocks (HLC)</strong> combine a physical timestamp with a logical counter, giving both real-world time meaning and safe ordering. Google Spanner's <strong>TrueTime</strong> takes a different approach entirely — atomic clocks and GPS receivers in every data center bound clock uncertainty to a few milliseconds, and Spanner deliberately <em>waits out</em> that uncertainty window before committing a transaction ("commit-wait"), which is what lets it offer external consistency across continents — an approach worth naming if a design question pushes into multi-region strong consistency, even without reproducing Spanner's implementation.</p>
+<p><strong>Consensus algorithms</strong> — how a group of nodes agrees on a single value (who's the leader, what's the next log entry) despite failures and message delays.</p>
+<table>
+<thead>
+<tr>
+<th>Algorithm</th>
+<th>Core idea</th>
+<th>Where you'll see it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Paxos</strong></td>
+<td>The original provably-correct consensus protocol; notoriously difficult to implement correctly and to explain</td>
+<td>Google Chubby, historically foundational</td>
+</tr>
+<tr>
+<td><strong>Raft</strong></td>
+<td>Designed explicitly to be more understandable than Paxos while providing the same guarantees — leader election + replicated log, with a clear "term" concept</td>
+<td>etcd, Consul, CockroachDB</td>
+</tr>
+<tr>
+<td><strong>ZAB (Zookeeper Atomic Broadcast)</strong></td>
+<td>Raft-like leader-based protocol purpose-built for ZooKeeper's coordination workload</td>
+<td>Apache ZooKeeper</td>
+</tr>
+</tbody>
+</table>
+<p>You don't need to implement any of these from scratch — you need to recognize <em>when a design needs one at all</em> (leader election after a node failure, keeping a replicated log consistent) and be able to name the tool that already solves it (ZooKeeper/etcd/Consul), rather than hand-rolling consensus in an interview.</p>
+<p><strong>What consensus is actually <em>for</em>, in one sentence:</strong> at the bottom of Raft, Paxos, and ZAB is the same abstraction, worth naming because it demystifies why "leader election" and "keep this replicated log consistent" turn out to be the same problem — <strong>total order broadcast</strong>, the guarantee that every node delivers the same messages in the same order. A replicated log where every node agrees on "entry 5, then entry 6, then entry 7" <em>is</em> total order broadcast; an elected leader is just a convenient way to decide that order without every node needing to negotiate it from scratch on every single message.</p>
+<p><strong>Byzantine faults</strong> — everything in this guide so far assumes a node either works correctly or stops (a <strong>crash fault</strong>); a <strong>Byzantine fault</strong> is a node that keeps running but sends <em>incorrect or actively malicious</em> messages — lying about its state, forging messages from other nodes. Standard consensus protocols (Raft, Paxos, ZAB) do <strong>not</strong> tolerate this — they assume every node that's still talking is being honest, just possibly slow or out of date. This matters almost exclusively in adversarial or safety-critical settings without a trusted operator (blockchain/cryptocurrency consensus, aircraft control systems) — worth knowing the term exists and that it's a genuinely different, harder problem than the crash-fault tolerance this entire guide otherwise assumes, but rarely worth designing for in a typical backend system where you control every node.</p>
+<p><strong>Process pauses</strong> deserve to be named as their own category of failure, distinct from a crash: a process can appear dead (missing heartbeats, holding a lock past its TTL) and then simply resume, having no idea any time passed — caused by a GC pause, a hypervisor live-migrating a VM, laptop lid closure during local testing masking the issue, or heavy disk I/O blocking a thread. The dangerous part isn't the pause itself, it's that <strong>the paused process cannot tell it was paused</strong> — from its own point of view, no time passed at all, so it wakes up and confidently continues exactly where it left off, potentially long after everyone else has decided it was dead and moved on without it. This is precisely why the fencing-token mechanism below exists — the protection has to come from the resource the process is about to act on, since the process itself has no reliable way to know its own assumptions are stale.</p>
+<p><strong>Distributed locks</strong> — coordinating exclusive access to a resource across multiple processes/machines (not just threads on one box). Typically implemented via Redis (<code>SET key value NX PX ttl</code> — set only if not already present, with an expiry so a crashed lock-holder can't wedge the resource forever) or ZooKeeper (ephemeral sequential nodes). The TTL is the whole design problem in miniature: too short, and a slow-but-alive process loses its lock mid-operation to another process; too long, and a genuinely crashed process blocks everyone else until it expires.</p>
+<p>Two refinements come up in almost every deeper follow-up:</p>
+<ul>
+<li><strong>Release safety</strong> — never release a lock with a blind <code>DEL</code>; a lock-holder whose TTL just expired might <code>DEL</code> a lock that a <em>different</em> process has since legitimately acquired. The safe release is a small Lua script that checks the stored value still matches this holder's unique token before deleting — an atomic "delete only if I'm still the owner."</li>
+<li><strong>Fencing tokens</strong> — the TTL problem above (a process pauses for longer than the TTL — a GC pause is the classic culprit — and loses the lock without realizing it, then resumes and writes anyway) can't be fixed by the lock alone. The fix is a monotonically increasing <strong>fencing token</strong> returned on every acquisition; the <em>protected resource itself</em> rejects any write carrying a token older than the newest one it's already seen, so a "zombie" holder that wakes up after losing the lock gets rejected downstream even though it still thinks it holds the lock.</li>
+</ul>
+<p><strong>Redlock</strong> is Redis's own proposal for making a lock more robust: acquire the same lock across N independent Redis instances and require a majority, with a validity window shortened by however long acquisition took. It's worth knowing the name — and worth knowing that it's genuinely contested: Martin Kleppmann's widely-cited critique argues Redlock's safety depends on timing assumptions (bounded clock drift, bounded pauses) that a GC pause or a slow network can violate in practice, and that a lock's real safety should come from fencing tokens validated by the resource, not from the locking protocol's timing alone. Citing both sides — "Redlock for best-effort coordination where the cost of a rare double-acquisition is low; a consensus-backed store like ZooKeeper/etcd, plus fencing tokens, when correctness genuinely can't bend" — reads as more senior than picking one without acknowledging the debate exists.</p>
+<p><strong>Idempotency</strong> — an operation that produces the same end result no matter how many times it's retried. This matters enormously in distributed systems because <em>at-least-once delivery is often the best guarantee you can get cheaply</em> — a network timeout doesn't tell you whether the server actually processed the request before failing to reply, so clients retry, and the server needs to handle "I've seen this exact request before" gracefully (typically via a client-generated <strong>idempotency key</strong> attached to the request, checked against a dedupe table before executing).</p>
+<p><strong>Distributed transactions</strong> — committing a change atomically across multiple services/databases. <strong>Two-Phase Commit (2PC)</strong> is the classical approach (a coordinator asks all participants to "prepare," then tells everyone to "commit" only if all said yes) but it blocks if the coordinator dies mid-protocol, so it's rare in modern web-scale systems. <strong>Three-Phase Commit (3PC)</strong> adds a non-blocking timeout step to fix that specific failure mode, at the cost of more round trips — worth naming as "the thing that fixes 2PC's blocking problem" if asked, but rarely deployed in practice either. <strong>TCC (Try-Confirm-Cancel)</strong> is a middle ground closer to application logic than protocol: a <strong>Try</strong> phase tentatively reserves resources (hold funds, hold inventory) without committing, a <strong>Confirm</strong> phase finalizes if every participant's Try succeeded, and a <strong>Cancel</strong> phase releases the reservations if any participant failed — conceptually similar to the seat-hold pattern in the Ticket Booking case study (Part III), generalized across services. The <strong>Saga pattern</strong> (Section 2.1) remains the practical default almost everyone reaches for now — trading strict atomicity for a sequence of compensable local transactions — with TCC as the answer when you specifically need the <em>reservation</em> held (not yet committed) during the in-between window, rather than a compensating action after the fact.</p>
+<div class="sd-remarks-slot" data-key="27-distributed-systems"></div>
+<h3 id="28-messaging-events"><span class="sd-slot" data-key="28-messaging-events"></span><span class="sec-num">2.8</span>Messaging &amp; Events</h3>
+<p>A <strong>message queue</strong> decouples producers from consumers in time — a producer publishes work and moves on; a consumer picks it up whenever it's ready. This buys resilience (a consumer outage doesn't lose work, it just backs up) and lets each side scale independently.</p>
+<p><strong>Queue vs. topic (pub/sub):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Delivery</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Queue (point-to-point)</strong></td>
+<td>Each message is delivered to exactly one consumer</td>
+<td>AWS SQS, Kafka "queue" consumption</td>
+</tr>
+<tr>
+<td><strong>Topic (pub/sub, broadcast)</strong></td>
+<td>Each message is delivered to <em>every</em> subscriber</td>
+<td>AWS SNS, Kafka topics read by multiple independent consumer groups</td>
+</tr>
+</tbody>
+</table>
+<p>A common pattern combines both: publish once to a topic, and let each downstream concern (send an email, update a search index, trigger analytics) consume that same event independently through its own queue — this is exactly the SNS-fans-out-to-SQS-queues pattern, and the general shape of most event-driven order-processing pipelines.</p>
+<p><strong>Failure modes queueing systems have to plan for, explicitly:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Problem</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Producers faster than consumers</td>
+<td>Add more consumers; apply backpressure to producers; as a last resort, drop low-priority messages</td>
+</tr>
+<tr>
+<td>Broker crashes</td>
+<td>Durability (persist messages to disk before acking the producer); run multiple brokers so one crash doesn't lose the queue</td>
+</tr>
+<tr>
+<td>Head-of-line blocking</td>
+<td>One slow/stuck message blocks everything behind it in its partition — mitigate with per-key parallel partitions, or move poison messages aside quickly</td>
+</tr>
+<tr>
+<td>Poison messages (a message that always fails processing)</td>
+<td>Route to a <strong>dead-letter queue (DLQ)</strong> after N failed attempts, so it stops blocking the healthy stream and can be inspected/replayed manually</td>
+</tr>
+<tr>
+<td>Duplicate delivery</td>
+<td>Idempotent consumers (Section 2.7) — most brokers guarantee only <em>at-least-once</em> delivery, not exactly-once</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Retry strategy:</strong> exponential backoff (wait longer between each retry) with jitter (randomize the wait slightly) to avoid every failed client retrying in lockstep and re-creating the exact same spike that caused the failure ("thundering herd").</p>
+<p><strong>Apache Kafka</strong>, specifically, is worth knowing at the component level since it shows up constantly as "the" answer to event streaming:</p>
+<ul>
+<li><strong>Topic</strong> — a named, append-only log of records.</li>
+<li><strong>Partition</strong> — a topic is split into partitions for parallelism; each partition is a strictly ordered log (ordering is only guaranteed <em>within</em> a partition, not across the whole topic).</li>
+<li><strong>Broker</strong> — a server that stores partitions and serves producer/consumer requests; brokers form a cluster.</li>
+<li><strong>Replication</strong> — each partition has a configurable number of replicas across brokers; one is the <strong>leader</strong> (handles all reads/writes for that partition), the rest are <strong>followers</strong>. The set of replicas fully caught up with the leader is the <strong>In-Sync Replica (ISR)</strong> set; a message is only considered "committed" once all ISR members have it, which is what lets Kafka survive a broker failure without losing acknowledged data.</li>
+<li><strong>Consumer group</strong> — a set of consumers that split a topic's partitions between them, so each partition is read by exactly one consumer in the group at a time (this is <em>how</em> Kafka parallelizes consumption while keeping per-partition order).</li>
+<li><strong>Offset</strong> — each consumer group tracks its own position (offset) in each partition, which is what lets a consumer restart and resume exactly where it left off.</li>
+</ul>
+<p>At LinkedIn's scale (Kafka's birthplace), this design routinely moves over a trillion messages a day — the throughput comes from the append-only log structure (sequential disk writes are fast) and partitioning (parallelism), not from any single clever trick.</p>
+<div class="sd-remarks-slot" data-key="28-messaging-events"></div>
+<h3 id="29-reliability"><span class="sd-slot" data-key="29-reliability"></span><span class="sec-num">2.9</span>Reliability</h3>
+<ul>
+<li><strong>High availability (HA)</strong> — designing so the system keeps serving requests despite individual component failures, usually measured in "nines" (99.9% = ~8.7 hours of downtime/year; 99.99% = ~52 minutes/year; 99.999% = ~5 minutes/year).</li>
+<li><strong>Fault vs. failure</strong> — a <strong>fault</strong> is a component deviating from expected behavior (a slow disk, a buggy branch of code); a <strong>failure</strong> is the user-visible consequence when faults aren't contained (the whole service goes down). Good design stops faults from <strong>cascading</strong> into failures.</li>
+<li><strong>Redundancy</strong> — no single instance of anything critical; N+1 (or more) of every critical component.</li>
+<li><strong>Failover</strong> — automatically switching to a standby/replica when the primary fails; requires health checks and (usually) the consensus/leader-election machinery from Section 2.7.</li>
+<li><strong>Disaster recovery</strong> — the plan for a large-scale failure (a whole region going down): defined by <strong>RPO</strong> (Recovery Point Objective — how much data you can afford to lose, driving your replication/backup frequency) and <strong>RTO</strong> (Recovery Time Objective — how fast you must be back up, driving whether you need a hot standby region or can tolerate restoring from backup).</li>
+<li><strong>Backups</strong> — regular, tested, and ideally stored in a geographically separate location and encrypted at rest; untested backups are a false sense of security, not a real safety net.</li>
+<li><strong>Graceful degradation</strong> — when a dependency fails, serve a reduced experience instead of an error (cached/stale recommendations instead of none, a "comments temporarily unavailable" banner instead of a broken page) — directly enabled by the Circuit Breaker pattern from Section 2.1.</li>
+<li><strong>Load shedding</strong> — under extreme load, deliberately reject a portion of incoming requests early and cheaply (before they consume real resources) so the requests that <em>are</em> accepted can still be served well, rather than letting every request in and having all of them time out together.</li>
+<li><strong>Chaos engineering</strong> — deliberately injecting failure into a production or production-like system (killing instances, adding latency, dropping network connections) to verify that redundancy and graceful degradation actually work, rather than assuming they do until a real outage proves otherwise. Netflix's Chaos Monkey (Part III, Group D) is the best-known example, but the practice generalizes well beyond Netflix: the point is that resilience you haven't tested is a hypothesis, not a property.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="29-reliability"></div>
+<h3 id="210-performance"><span class="sd-slot" data-key="210-performance"></span><span class="sec-num">2.10</span>Performance</h3>
+<ul>
+<li><strong>Latency</strong> — time for a single operation to complete. Report it as a distribution, not an average: <strong>p50</strong> (median, typical experience), <strong>p95</strong>/<strong>p99</strong> (tail latency — the requests that are actually painful), because averages hide exactly the outliers users complain about. SLAs are almost always written in percentile terms for this reason.</li>
+<li><strong>Throughput</strong> — work completed per unit time (requests/sec, messages/sec). Latency and throughput trade off against each other under load — batching improves throughput at the cost of per-item latency.</li>
+<li><strong>Caching</strong> — see 2.5; the highest-leverage performance lever in most designs, precisely because of the latency table in Part 0 (memory vs. disk vs. cross-region network).</li>
+<li><strong>Database optimization</strong> — indexing the right columns (see below), denormalizing read-heavy tables, using read replicas to offload reads from the writer, and connection pooling.</li>
+<li><strong>Asynchronous processing</strong> — move anything not required for the immediate response (sending a confirmation email, generating a thumbnail, updating analytics) off the request path and onto a queue, so the user-facing latency reflects only the work that actually needs to happen synchronously.</li>
+<li><strong>Connection pooling</strong> — reuse a small set of already-open database/network connections instead of paying TCP + TLS handshake cost per request; almost every production ORM/driver does this by default, but it's worth naming explicitly as a cost you're avoiding.</li>
+</ul>
+<p><strong>Database indexing</strong> — an index is an auxiliary data structure mapping column values to row locations, so a lookup doesn't require scanning every row.</p>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>B-Tree / B+Tree</strong></td>
+<td>The default index structure in most relational databases — balanced, so lookups are logarithmic in row count; B+Trees additionally chain all data at the leaf level, making range scans (<code>WHERE x BETWEEN a AND b</code>) efficient</td>
+</tr>
+<tr>
+<td><strong>Clustered index</strong></td>
+<td>The table's rows are physically stored in index order (usually on the primary key) — a table can have at most one</td>
+</tr>
+<tr>
+<td><strong>Non-clustered (secondary) index</strong></td>
+<td>A separate structure pointing back to the row's actual location — a table can have many</td>
+</tr>
+<tr>
+<td><strong>Composite index</strong></td>
+<td>An index over multiple columns together — column order matters; it only helps queries that filter on a left-anchored prefix of the indexed columns</td>
+</tr>
+<tr>
+<td><strong>Hash index</strong></td>
+<td>The simplest index worth knowing by name (the mechanism behind Bitcask/Riak's storage engine): an in-memory hash map from key to the byte offset of that key's most recent value in an on-disk, append-only log. Writes are a single sequential append plus a hash-map update — about as fast as writing gets — but the entire key set must fit in memory, and range queries ("all keys between X and Y") aren't supported at all, only exact-match lookups</td>
+</tr>
+<tr>
+<td><strong>LSM Tree (Log-Structured Merge-Tree)</strong></td>
+<td>The write-optimized alternative to a B-Tree, and the default storage engine in Cassandra, RocksDB, and LevelDB. Writes never modify data in place: they're appended to an in-memory <strong>memtable</strong> (backed by a <strong>write-ahead log</strong> for crash recovery), and once the memtable fills up it's flushed to disk as an immutable, sorted <strong>SSTable</strong>. A background <strong>compaction</strong> process periodically merges SSTables, discarding overwritten/deleted values. This makes writes extremely fast (always sequential, never a random-access update) at the cost of <strong>read amplification</strong> — a read may need to check the memtable and several SSTables before finding the latest value, which is why LSM-based stores lean heavily on <strong>Bloom filters</strong> per SSTable to skip the ones that definitely don't contain a given key</td>
+</tr>
+<tr>
+<td><strong>Inverted index</strong></td>
+<td>Term → list of documents containing it — the structure behind full-text search (Elasticsearch/Lucene), unrelated to B-Trees entirely</td>
+</tr>
+<tr>
+<td><strong>Geospatial index</strong></td>
+<td>R-tree, Geohash, or a hierarchical grid (Quadtree/S2/H3) — see the Design Uber case study (Part III) for the full comparison</td>
+</tr>
+</tbody>
+</table>
+<p><em>Trade-off to say out loud</em>: indexes make reads faster but make writes slower (every insert/update/delete has to update every index on that table too) and cost extra storage — so you index columns that are frequently filtered/sorted/joined on, not every column reflexively. At a higher level, <strong>B-Tree vs. LSM-Tree is itself a read/write trade-off</strong>: pick a B-Tree-based engine (Postgres, MySQL/InnoDB) when reads dominate and you need efficient range scans; pick an LSM-based engine when you're write-heavy and can tolerate slightly slower, Bloom-filter-assisted reads.</p>
+<div class="sd-remarks-slot" data-key="210-performance"></div>
+<h3 id="211-consistency-data-patterns"><span class="sd-slot" data-key="211-consistency-data-patterns"></span><span class="sec-num">2.11</span>Consistency &amp; Data Patterns</h3>
+<ul>
+<li><strong>Strong consistency (linearizability)</strong> — every read reflects the latest committed write, everywhere, immediately, and all operations appear to happen in one single, real-time-ordered sequence. Simple to reason about, expensive to provide across regions.</li>
+<li><strong>Eventual consistency</strong> — replicas converge to the same value <em>eventually</em>, with no fixed bound on when. Cheaper and more available, but requires the application (or the user) to tolerate a window of staleness.</li>
+<li><strong>BASE</strong> (the NoSQL-world counterpart to ACID) — <strong>B</strong>asically <strong>A</strong>vailable, <strong>S</strong>oft state, <strong>E</strong>ventual consistency — a deliberate naming joke, and a genuinely different design philosophy: favor availability and accept that the system's state may be "soft" (in flux) between writes.</li>
+</ul>
+<p>Between those two extremes sits a spectrum of <strong>session guarantees</strong> worth naming precisely, because they let you promise a user something meaningfully stronger than plain eventual consistency without paying for full linearizability everywhere:</p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>The guarantee</th>
+<th>Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Causal consistency</strong></td>
+<td>Operations that are causally related (a reply to a comment) are seen by everyone in the same order; unrelated operations can be seen in any order</td>
+<td>Comment threads, chat — a reply should never appear before the message it's replying to</td>
+</tr>
+<tr>
+<td><strong>Read-your-writes</strong></td>
+<td>A user always sees their own writes immediately, even if other users see them later</td>
+<td>A user editing their own profile shouldn't see their old data reappear on refresh</td>
+</tr>
+<tr>
+<td><strong>Monotonic reads</strong></td>
+<td>Once a user has seen a value, they never see an <em>older</em> value on a subsequent read (even if routed to a different, lagging replica)</td>
+<td>Prevents a refresh from appearing to "undo" data the user already saw</td>
+</tr>
+<tr>
+<td><strong>Bounded staleness</strong></td>
+<td>Data is guaranteed to be no more than some fixed time (or number of writes) out of date</td>
+<td>Dashboards and analytics views that don't need real-time freshness but do need an upper bound on lag</td>
+</tr>
+</tbody>
+</table>
+<p>A common, practical technique for read-your-writes specifically: route a user's own reads to the leader (or a replica confirmed caught-up) for a short window right after they write, and fall back to any replica afterward.</p>
+<p><strong>CQRS (Command Query Responsibility Segregation)</strong> — split the model that handles writes (commands) from the model that handles reads (queries), letting each be optimized independently — a write model normalized for correctness, a read model denormalized/indexed purely for fast retrieval, kept in sync asynchronously. Read and write load are rarely equal (most systems are far more read-heavy), so scaling them together under one model wastes effort. Cost: the read side lags the write side by some small window (eventual consistency again), and you now have two models to keep conceptually aligned.</p>
+<p><strong>Event sourcing</strong> — instead of storing only the current state, store the full sequence of state-changing events; current state is derived by replaying them. A bank balance isn't a stored number — it's the sum of every deposit and withdrawal event, replayed. Benefits: a complete audit trail for free, the ability to reconstruct state as of any point in time (invaluable for debugging and compliance), and natural pairing with CQRS (the event log <em>is</em> the write model; a projection built from it <em>is</em> the read model). Cost: replaying a long event history to reconstruct current state gets expensive without periodic <strong>snapshots</strong>, and the storage grows unboundedly without an archiving strategy.</p>
+<p><strong>How event sourcing differs from plain CRUD</strong>, concretely: in CRUD, reducing an inventory count from 10 to 7 overwrites the 10 — the fact that a reduction of 3 happened is gone. In event sourcing, you store <code>stock: 10</code> then <code>decremented by 3</code>, so the <em>why</em> and <em>when</em> survive, not just the <em>what</em>.</p>
+<div class="sd-remarks-slot" data-key="211-consistency-data-patterns"></div>
+<h3 id="212-security"><span class="sd-slot" data-key="212-security"></span><span class="sec-num">2.12</span>Security</h3>
+<p><strong>Authentication (who are you) vs. authorization (what can you do)</strong> — a distinction worth stating explicitly in an interview, because the mechanisms differ.</p>
+<p><strong>Access-control models:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>How permissions are decided</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ACL (Access Control List)</strong></td>
+<td>An explicit list of who can do what to a specific resource</td>
+</tr>
+<tr>
+<td><strong>RBAC (Role-Based Access Control)</strong></td>
+<td>Permissions attach to roles; users are assigned roles</td>
+</tr>
+<tr>
+<td><strong>ABAC (Attribute-Based Access Control)</strong></td>
+<td>Decisions consider dynamic attributes — user department, resource sensitivity, time of day, location</td>
+</tr>
+</tbody>
+</table>
+<p><strong>JWT (JSON Web Token)</strong> — a common way to carry authentication/authorization claims statelessly. Three base64-encoded parts: <strong>header</strong> (algorithm + token type), <strong>payload</strong> (claims — <code>sub</code> subject, <code>exp</code> expiration, custom claims), <strong>signature</strong> (HMAC or RSA over the header+payload, so tampering is detectable). Because a valid signature proves the claims weren't altered, a server can trust a JWT without a database lookup on every request — the trade-off is that a JWT can't be easily "revoked" before its expiry without extra infrastructure (a blocklist, or short expiries plus a refresh-token flow).</p>
+<p><strong>OAuth 2.0 and OIDC</strong> — OAuth 2.0 is an <em>authorization</em> framework (letting an app act on a user's behalf without seeing their password — "log in with Google"); <strong>OpenID Connect (OIDC)</strong> is a thin identity layer built on top of OAuth 2.0 that adds actual <em>authentication</em> (an ID token asserting who the user is), which is why "OAuth 2.0 / OIDC" is usually named together.</p>
+<p><strong>Encryption:</strong></p>
+<ul>
+<li><strong>At rest</strong> — data encrypted on disk, so a stolen drive or improperly-accessed backup isn't readable.</li>
+<li><strong>In transit</strong> — TLS on every network hop, including internal service-to-service traffic in a zero-trust design, not just the public-facing edge.</li>
+<li><strong>Key management</strong> — the practical hard part: secure generation, storage (a dedicated secrets manager, never hardcoded or committed to source), rotation, and access-scoping of encryption keys.</li>
+<li><strong>Password hashing specifically</strong> is worth calling out by name rather than lumping into "encryption" generally, since it's a distinct, frequently-checked detail: passwords are never encrypted (reversible) or hashed with a fast, general-purpose algorithm like MD5/SHA-1/SHA-256 (crackable via rainbow tables and brute-force at GPU speed). The correct answer is a <strong>slow, purpose-built password hash with per-user salting</strong> — <strong>bcrypt</strong> or <strong>Argon2</strong> (the more modern, memory-hard choice, and the current recommended default) — deliberately expensive to compute so brute-forcing every possible password is impractical even after a database leak.</li>
+<li><strong>Tokenization</strong>, specifically in payment contexts (Part III, Group F): replace a sensitive value (a card number) with a non-sensitive token at the earliest possible point, so the real value never touches your own database or logs at all — the token is meaningless to anyone who steals it, and only the tokenization provider (or a narrowly-scoped vault) can map it back. This is the concrete mechanism behind "PCI-DSS scope reduction" — if your systems never store the real card number, most of PCI-DSS's strictest requirements simply don't apply to them.</li>
+</ul>
+<p><strong>Network security layers:</strong> <strong>firewalls</strong> (rule-based traffic filtering at the network boundary), <strong>WAF (Web Application Firewall)</strong> (inspects application-layer HTTP traffic for attack patterns — SQLi, XSS, the categories the <strong>OWASP Top 10</strong> catalogs as the most common real-world web-application vulnerabilities, worth naming as the standard reference if a design question drifts toward application-level security specifically), <strong>IDPS (Intrusion Detection/Prevention System)</strong> (monitors for anomalous behavior in real time), <strong>VPN</strong> (encrypted tunnel for remote/internal access).</p>
+<p><strong>Zero Trust</strong> — the modern default mental model, replacing "trusted internal network, untrusted outside": <em>never trust, always verify</em>, regardless of whether a request originates inside or outside the network perimeter. Every request is authenticated and authorized on its own merits, service-to-service included — which is exactly why a service mesh's mTLS-everywhere approach (Section 2.15) has become standard rather than optional.</p>
+<p><strong>Compliance</strong> — GDPR (EU data protection and privacy), HIPAA (US health data), PCI-DSS (payment card data). These aren't just legal checkboxes to mention — they impose concrete design constraints (data residency, right-to-erasure implying you need to actually be able to delete a user's data across every system that touched it, audit logging of who accessed what).</p>
+<div class="sd-remarks-slot" data-key="212-security"></div>
+<h3 id="213-observability"><span class="sd-slot" data-key="213-observability"></span><span class="sec-num">2.13</span>Observability</h3>
+<p>The three pillars, and what each one is actually good for:</p>
+<table>
+<thead>
+<tr>
+<th>Pillar</th>
+<th>Answers</th>
+<th>Tooling examples</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Logs</strong></td>
+<td>"What exactly happened, in detail, for this one request/event?"</td>
+<td>ELK/Elasticsearch, structured JSON logs</td>
+</tr>
+<tr>
+<td><strong>Metrics</strong></td>
+<td>"How is the system behaving in aggregate, over time?" (CPU, latency percentiles, error rate, queue depth)</td>
+<td>Prometheus + Grafana, Datadog</td>
+</tr>
+<tr>
+<td><strong>Traces</strong></td>
+<td>"As this one request crossed 12 microservices, where did the time go, and where did it fail?"</td>
+<td>Jaeger, Zipkin</td>
+</tr>
+</tbody>
+</table>
+<p><strong>OpenTelemetry</strong> has become the vendor-neutral standard for instrumenting all three, so an application emits data in a common format regardless of which backend (Datadog, Grafana, Honeycomb) ultimately visualizes it — worth naming specifically, since it replaced a fragmented, vendor-specific landscape.</p>
+<p><strong>Alerts</strong> are built on metrics, but the design decision that matters is <em>what</em> to alert on: alert on symptoms your users would notice (error rate, latency percentile breach) rather than every possible internal cause, or you'll train your on-call rotation to ignore alerts.</p>
+<p><strong>Two dashboard conventions worth naming</strong> rather than reinventing per-project: the <strong>RED method</strong> (Rate, Errors, Duration) for <em>services</em> — how many requests, how many failed, how long did they take; and the <strong>USE method</strong> (Utilization, Saturation, Errors) for <em>resources</em> — how busy is this CPU/disk/queue, is work queuing up waiting for it, and is it throwing errors. Reaching for one of these by name is a fast way to structure "what should this dashboard show" without designing a monitoring taxonomy from scratch.</p>
+<p><strong>SLI / SLO / SLA</strong> — a chain of increasingly formal commitments: an <strong>SLI</strong> (Service Level Indicator) is the actual measured metric (e.g., "p99 latency"); an <strong>SLO</strong> (Objective) is your internal target for that metric ("p99 &lt; 300ms for 99.9% of the month"); an <strong>SLA</strong> (Agreement) is the externally-facing, often contractual promise to customers, usually with a looser target than the internal SLO so you have margin to fix problems before breaching the customer-facing promise. The <strong>error budget</strong> is just <code>100% − SLO</code>, expressed as an allowance rather than a target — a 99.9% SLO means a 0.1% error budget, and teams commonly use "how much of this month's error budget is left" as the actual, numeric input to a real decision (keep shipping features, or freeze releases and spend the week on reliability work).</p>
+<div class="sd-remarks-slot" data-key="213-observability"></div>
+<h3 id="214-infrastructure"><span class="sd-slot" data-key="214-infrastructure"></span><span class="sec-num">2.14</span>Infrastructure</h3>
+<ul>
+<li><strong>Containers</strong> — package an application with its dependencies into a portable, isolated unit (Docker being the dominant runtime); solves "works on my machine" by shipping the machine's relevant slice along with the code.</li>
+<li><strong>Kubernetes (K8s)</strong> — orchestrates containers across a cluster of machines: scheduling (deciding which node runs which container), self-healing (restarting crashed containers, rescheduling off failed nodes), scaling (horizontal pod autoscaling based on load), service discovery, and rolling updates.</li>
+<li><strong>Cloud platforms</strong> (AWS, Azure, GCP) — provide the managed building blocks (compute, storage, databases, queues, load balancers) most of this guide's components map directly onto, so you rarely build them from scratch in practice.</li>
+<li><strong>Infrastructure as Code (IaC)</strong> — define infrastructure in version-controlled config (Terraform, Pulumi, CloudFormation) rather than clicking through a console, so environments are reproducible and changes are reviewable.</li>
+<li><strong>CI/CD</strong> — automated build/test/deploy pipelines; enables the frequent small releases that make rollback (rather than heroic debugging) the default response to a bad deploy. Deployment strategies worth naming: <strong>blue-green</strong> (two full environments, switch traffic atomically, instant rollback), <strong>canary</strong> (roll out to a small traffic slice first, watch metrics, expand gradually), <strong>rolling update</strong> (replace instances gradually, old and new versions coexist briefly). <strong>Feature flags</strong> solve a related but distinct problem — they decouple <em>deploying</em> code from <em>releasing</em> a feature, letting new code ship to production dark (inactive) and then be switched on gradually, per-user or per-percentage, without a second deployment; this is what makes it possible to roll a feature back instantly (flip the flag) even when rolling back the deployment itself would be slower or riskier.</li>
+<li><strong>Service mesh</strong> — a dedicated infrastructure layer (typically sidecar-based, Section 2.1) handling service-to-service traffic concerns — mTLS, retries, circuit breaking, observability — outside application code. Istio (built on the Envoy proxy) is the canonical example; it's what "sidecar pattern, applied consistently across every service in a cluster" looks like in production.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="214-infrastructure"></div>
+<h3 id="215-modern-ai-systems"><span class="sd-slot" data-key="215-modern-ai-systems"></span><span class="sec-num">2.15</span>Modern AI Systems</h3>
+<p>This is the fastest-moving section in system design prep, and the one most likely to be missing from courses even a year or two old. Every major 2026 course update (Grokking, Hello Interview, and the standalone GenAI-focused guides) now treats it as a core topic, not an appendix — interviewers at AI-forward companies increasingly ask "design a customer-support bot" or "design ChatGPT" alongside the classic case studies.</p>
+<p><strong>RAG (Retrieval-Augmented Generation)</strong> — grounds an LLM's answers in your own data by retrieving relevant context and injecting it into the prompt before generation, rather than relying purely on what the model memorized during training. The pipeline, end to end:</p>
+<ol>
+<li><strong>Offline (indexing) path</strong> — documents are split into <strong>chunks</strong> (sized to balance context relevance against noise — bigger chunks carry more context but dilute relevance), each chunk is converted to an <strong>embedding</strong> (a dense vector capturing semantic meaning) by an embedding model, and stored in a <strong>vector database</strong>.</li>
+<li><strong>Online (query) path</strong> — the user's query is embedded the same way, the vector database returns the most semantically similar chunks (via approximate nearest-neighbor search), an optional <strong>re-ranker</strong> reorders candidates for relevance, and the top results are inserted into the prompt sent to the LLM alongside the user's question.</li>
+</ol>
+<p><strong>Vector databases</strong> — purpose-built for high-dimensional similarity search at scale (Pinecone, Weaviate, Milvus, or <code>pgvector</code> as a Postgres extension for teams who'd rather not run a new datastore). The core operation is approximate nearest-neighbor (ANN) search, trading a small amount of recall for large speedups over exact search, since exact nearest-neighbor search doesn't scale past a fairly small corpus.</p>
+<p><strong>Hybrid search</strong> — combining dense (embedding-based/semantic) retrieval with sparse (traditional keyword, e.g., BM25) retrieval, because pure semantic search can miss exact-match needs (product SKUs, error codes, proper nouns) that keyword search catches trivially.</p>
+<p><strong>AI agents</strong> — an LLM given tools (function calls, code execution, web/API access) and a loop that lets it plan, act, observe the result, and decide the next step — as opposed to a single prompt-in/answer-out call. Design considerations that come up repeatedly: a <strong>tool sandbox</strong> (agents executing code or hitting APIs need containment so a bad plan can't do real damage), a step/iteration cap (to bound cost and prevent infinite loops), and human-escalation paths for low-confidence or high-stakes actions.</p>
+<p><strong>Model serving</strong> — deploying a trained model to handle production inference traffic: batching requests to use GPU capacity efficiently, model quantization (trading some precision for lower latency/cost), routing (a fast small model for easy queries, a larger model only when needed), and semantic caching (cache by embedding-similarity to a prior query, not just exact string match, since two differently-phrased questions can have the same answer).</p>
+<p><strong>AI-specific observability:</strong> track token usage per user/session (it's the direct cost driver), p50/p95/p99 generation latency, vector-retrieval hit rate, and a <strong>golden dataset</strong> of representative Q&amp;A pairs for offline regression testing whenever the underlying model, prompt, or retrieval pipeline changes — the AI-era equivalent of a unit-test suite, since LLM outputs aren't deterministic enough to unit-test in the traditional sense.</p>
+<p><strong>Evaluation</strong> — because you can't just "assert equals" an LLM's output, evaluation typically combines automated metrics (RAGAS-style scores for retrieval relevance and answer faithfulness) with a fixed golden dataset run on every change, plus online signals (thumbs up/down, escalation rate) once shipped.</p>
+<p><strong>Guardrails and safety</strong> — input/output filtering for the specific risks generative systems introduce: leaking system prompts or secrets, producing unsafe or off-brand content, and prompt injection (malicious instructions smuggled into retrieved documents or tool outputs, attempting to hijack the agent's behavior) — worth naming explicitly if your design retrieves or acts on untrusted external content.</p>
+<div class="sd-remarks-slot" data-key="215-modern-ai-systems"></div>
+<h3 id="216-design-principles"><span class="sd-slot" data-key="216-design-principles"></span><span class="sec-num">2.16</span>Design Principles</h3>
+<p>A closing set of engineering values that don't map to one component, but should visibly inform every choice you make in the rest of the interview:</p>
+<table>
+<thead>
+<tr>
+<th>Principle</th>
+<th>In practice</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>KISS</strong> (Keep It Simple)</td>
+<td>Prefer the boring, well-understood solution unless the requirements genuinely demand more — over-engineering for hypothetical future scale is a common interview mistake</td>
+</tr>
+<tr>
+<td><strong>DRY</strong> (Don't Repeat Yourself)</td>
+<td>Shared logic lives in one place — at the architecture level, this is part of the case for extracting a common service rather than copy-pasting logic into three microservices</td>
+</tr>
+<tr>
+<td><strong>Loose coupling</strong></td>
+<td>Components interact through stable interfaces/contracts, not by reaching into each other's internals — the property that makes independent deployment and independent scaling possible at all</td>
+</tr>
+<tr>
+<td><strong>Separation of concerns</strong></td>
+<td>Each component/module owns one concern — this is Single Responsibility (Section 1.3) applied at the system level, not just the class level</td>
+</tr>
+<tr>
+<td><strong>Stateless services</strong></td>
+<td>Any instance can handle any request, since no request-specific state is held in server memory between calls — the property that makes horizontal scaling and load balancing simple; session state, if needed, goes in a shared store (cache/DB), not in-process</td>
+</tr>
+<tr>
+<td><strong>Defense in depth</strong></td>
+<td>Layer multiple independent security controls (network, application, data) so a single control's failure doesn't mean total compromise</td>
+</tr>
+<tr>
+<td><strong>Graceful degradation</strong></td>
+<td>See Section 2.9 — a reduced experience beats an error page</td>
+</tr>
+<tr>
+<td><strong>Design for failure</strong></td>
+<td>Assume every component <em>will</em> fail eventually, and design so that failure is contained and recoverable rather than surprising — the mindset underlying redundancy, circuit breakers, and retries throughout this entire Part II</td>
+</tr>
+<tr>
+<td><strong>The end-to-end argument</strong></td>
+<td>A correctness guarantee (data wasn't corrupted, a message wasn't duplicated) is only ever as strong as the check made by the two parties who actually care about it — the application at each end — because any guarantee provided only by a layer in the middle (the network, a single hop's retry logic) can't see what happens before or after its own boundary. TCP's checksums don't mean an application can skip its own integrity checks; a broker's at-least-once delivery doesn't mean a consumer can skip idempotency (Section 2.7) — the middle can help, but the endpoints are where correctness is actually enforced</td>
+</tr>
+</tbody>
+</table>
+<div class="sd-remarks-slot" data-key="216-design-principles"></div>
+<h3 id="217-data-processing-at-scale"><span class="sd-slot" data-key="217-data-processing-at-scale"></span><span class="sec-num">2.17</span>Data Processing at Scale</h3>
+<p>A category of its own, distinct from the request-serving path the rest of Part II focuses on — this is about moving and transforming large volumes of data <em>between</em> systems, usually off the user-facing critical path entirely. It comes up whenever a design needs analytics, ML features, search-index freshness, or any "recompute this over everything we have" workload.</p>
+<ul>
+<li><strong>Batch processing</strong> — process a large, bounded, already-accumulated dataset on a schedule (hourly, nightly). <strong>MapReduce</strong> is the foundational concept (map: transform each record independently and in parallel; reduce: aggregate the mapped results by key); <strong>Spark</strong> generalizes it with in-memory processing (far faster than MapReduce's disk-based shuffle for iterative workloads) and a richer set of operations.</li>
+<li><strong>Stream processing</strong> — process events continuously, as they arrive, with sub-second to few-second latency instead of waiting for a batch window. <strong>Flink</strong> and <strong>Kafka Streams</strong> are the standard engines; both are built around <strong>event time</strong> (when something actually happened) vs. <strong>processing time</strong> (when your pipeline saw it) — a distinction that matters the moment events can arrive late or out of order (a mobile client offline for an hour, then reconnecting and flushing a backlog). <strong>Windowing</strong> (tumbling — fixed, non-overlapping; sliding — overlapping; session — grouped by gaps in activity) defines how a continuous stream gets bucketed into finite pieces to aggregate over, and <strong>watermarks</strong> are the mechanism a stream processor uses to decide "I've probably seen all the events for this window now, even accounting for some lateness" — trading a bit of latency for the ability to eventually close a window and emit a result at all.</li>
+<li><strong>Lambda vs. Kappa architecture</strong> — two competing answers to "how do I get both fast approximate results and eventually-correct exact results from the same data." <strong>Lambda architecture</strong> runs two parallel pipelines against the same raw data: a <strong>batch layer</strong> (slow, exact, reprocesses everything) and a <strong>speed layer</strong> (fast, approximate, covers the most recent data not yet processed by the batch layer); a serving layer merges both views. The well-known cost is maintaining two independent codebases that need to agree. <strong>Kappa architecture</strong> is the simplification: treat <em>everything</em>, including historical data, as a replayable stream (Kafka's log retention makes this practical), and use one stream-processing pipeline for both real-time and reprocessing — rerunning history is just replaying the log from an earlier offset. Kappa is the more common answer in new designs specifically because it avoids the two-codebases problem; Lambda still comes up when a genuinely different algorithm is needed for the exact, offline pass than is feasible in real time.</li>
+<li><strong>Data lakes vs. data warehouses vs. lakehouses</strong> — a <strong>data lake</strong> (raw files, often Parquet, on object storage) stores data in its original form cheaply, schema-on-read; a <strong>data warehouse</strong> (Redshift, BigQuery, Snowflake) stores structured, transformed data optimized for fast SQL analytics, schema-on-write; a <strong>lakehouse</strong> (Delta Lake, Apache Iceberg) is the newer attempt to get the warehouse's transactional/query guarantees directly on top of lake-style cheap object storage, avoiding the duplicate "lake for raw, warehouse for query" pipeline.</li>
+<li><strong>ETL vs. ELT</strong> — <strong>E</strong>xtract-<strong>T</strong>ransform-<strong>L</strong>oad transforms data before it lands in the destination (traditional, when the destination is expensive/limited); <strong>E</strong>xtract-<strong>L</strong>oad-<strong>T</strong>ransform loads raw data first and transforms it afterward, inside the destination itself — practical now that warehouses/lakehouses are cheap and powerful enough to do the transformation step themselves, and increasingly the default for new pipelines.</li>
+<li><strong>CDC as the batch/stream bridge</strong> — Section 2.1's Change Data Capture is the most common <em>source</em> feeding both these worlds: a CDC stream can feed a real-time pipeline directly, and/or land continuously in a lake/warehouse as an always-current replacement for a nightly extract job.</li>
+<li><strong>Orchestration</strong> — batch and stream pipelines both need something to schedule, sequence, and retry multi-step jobs with dependencies between them (Airflow, Dagster, Temporal) — worth naming as its own layer rather than assuming pipelines run themselves.</li>
+</ul>
+<div class="sd-remarks-slot" data-key="217-data-processing-at-scale"></div>
+<h3 id="218-transactions-concurrency-control"><span class="sd-slot" data-key="218-transactions-concurrency-control"></span><span class="sec-num">2.18</span>Transactions &amp; Concurrency Control</h3>
+<p>Section 2.5 defined ACID at a high level. This section is the part most HLD-only prep skips and most backend-heavy interviews (and almost any "we had a data corruption bug in production" conversation) actually probe: <strong>what a database transaction promises is a spectrum, not a single guarantee</strong>, and knowing exactly which point on that spectrum you're standing on is what separates "I called <code>BEGIN TRANSACTION</code>" from actually understanding what can still go wrong.</p>
+<p><strong>Why isolation is a spectrum at all:</strong> true <strong>serializability</strong> — transactions behaving as if they ran one at a time, in some order, with zero concurrency — is expensive to implement efficiently, so almost every production database offers <strong>weaker isolation levels</strong> that allow more concurrency at the cost of specific, well-catalogued anomalies. The whole game is knowing which anomalies each level still permits, because "I set isolation level X" is meaningless without knowing what X actually stops.</p>
+<p><strong>The anomalies, defined precisely</strong> (these are the vocabulary the levels below are graded against):</p>
+<table>
+<thead>
+<tr>
+<th>Anomaly</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Dirty read</strong></td>
+<td>Transaction A reads a row that transaction B has written but not yet committed — if B then rolls back, A read a value that never really existed</td>
+</tr>
+<tr>
+<td><strong>Dirty write</strong></td>
+<td>Transaction A overwrites a value that transaction B wrote but hasn't committed yet — can interleave unrelated fields from two transactions into one corrupted record</td>
+</tr>
+<tr>
+<td><strong>Read skew (non-repeatable read)</strong></td>
+<td>Transaction A reads the same row twice and gets two different values, because transaction B committed a change in between — a problem specifically for anything that reads multiple related things and expects them to be mutually consistent (e.g., reading two account balances that should sum to a constant)</td>
+</tr>
+<tr>
+<td><strong>Lost update</strong></td>
+<td>Transactions A and B both read the same value, both compute a new value based on it, and both write back — whichever writes second silently overwrites the first's update, and the first update is gone with no error raised</td>
+</tr>
+<tr>
+<td><strong>Write skew</strong></td>
+<td>Two transactions both read an overlapping set of rows, then each writes to a <em>different</em> row based on what they read — individually each write looks valid, but the combination violates an invariant neither transaction could see on its own</td>
+</tr>
+<tr>
+<td><strong>Phantom read</strong></td>
+<td>Transaction A runs a query with a <code>WHERE</code> condition; transaction B inserts a new row that would have matched that condition and commits; if A re-runs the same query, a row appears that wasn't there before — a special case of write skew where the conflict is over rows that don't exist yet</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The isolation levels, and exactly what each one stops:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Level</th>
+<th>Prevents</th>
+<th>Still allows</th>
+<th>Typical mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Read Committed</strong></td>
+<td>Dirty reads, dirty writes</td>
+<td>Read skew, lost updates, write skew, phantoms</td>
+<td>Row-level locks held only for the duration of a write; reads simply never see uncommitted data</td>
+</tr>
+<tr>
+<td><strong>Snapshot Isolation</strong> (often called <strong>Repeatable Read</strong>)</td>
+<td>Dirty reads/writes, read skew</td>
+<td>Lost updates <em>by default</em> (needs an explicit fix — below), write skew, phantoms</td>
+<td><strong>MVCC (Multi-Version Concurrency Control)</strong> — each transaction reads from a consistent snapshot of the database as it was at the moment the transaction started, so it never sees concurrent commits at all, rather than being blocked by them</td>
+</tr>
+<tr>
+<td><strong>Serializable</strong></td>
+<td>Everything, including write skew and phantoms</td>
+<td>Nothing — transactions behave as if executed one at a time</td>
+<td><strong>Actual serial execution</strong> (run all transactions on a single thread — viable now that RAM is large enough to hold entire working sets, as used by early single-threaded Redis and VoltDB), <strong>Two-Phase Locking (2PL)</strong> (transactions take shared/exclusive locks and hold <em>all</em> of them until commit — strong but kills concurrency and is prone to deadlock), or <strong>Serializable Snapshot Isolation (SSI)</strong> (start from cheap MVCC snapshots, optimistically allow transactions to proceed, and abort-and-retry only the ones that a runtime check detects would have violated serializability — the modern default, since it gets serializable correctness at close to snapshot-isolation performance for most workloads)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>MVCC, mechanically:</strong> rather than locking rows for reads, the database keeps multiple versions of each row (tagged with the transaction ID that created them) and gives every transaction a consistent view of "every row as committed before I started." This is <em>why</em> snapshot isolation is so much more concurrency-friendly than lock-based read committed — readers never block writers and writers never block readers, since they're simply looking at different, independently-valid versions of the data.</p>
+<p><strong>Preventing lost updates specifically</strong> (since snapshot isolation alone doesn't stop them): use an atomic <strong>compare-and-set</strong> / conditional update (<code>UPDATE ... WHERE version = ?</code>, the same primitive from the Ticket Booking and E-commerce case studies in Part III), an explicit <code>SELECT ... FOR UPDATE</code> row lock, or let the database's automatic conflict detection abort one of the two transactions and have the application retry it.</p>
+<p><strong>Write skew is the one that surprises people</strong>, because no single row was written twice — the classic shape is two transactions each independently checking "is this invariant still satisfied?" (is at least one doctor still on call, is this seat still available across two different seats a user is trying to book together) and both proceeding because the check passed <em>for them individually</em>, when checked concurrently. The general fix is to make the invariant an actual, explicit constraint the database can enforce (a unique constraint, a check constraint) rather than something only the application logic verifies via a read-then-write — or use <code>SELECT ... FOR UPDATE</code> to lock the rows the invariant depends on, not just the row being written.</p>
+<p><strong>What to say in an interview when a design needs multi-row consistency:</strong> name the specific anomaly the design is vulnerable to (usually lost update or write skew, since dirty reads/writes are solved by even the weakest usable isolation level), then name the concrete fix (conditional update, explicit row lock, or a real constraint) — reciting "I'll use a transaction" without naming which isolation level and which anomaly it addresses reads as memorized rather than understood.</p>
+<div class="sd-remarks-slot" data-key="218-transactions-concurrency-control"></div>
+<h3 id="219-data-encoding-schema-evolution"><span class="sd-slot" data-key="219-data-encoding-schema-evolution"></span><span class="sec-num">2.19</span>Data Encoding &amp; Schema Evolution</h3>
+<p>Every system that outlives its first deployment eventually needs to change its data's shape while old and new code run side by side — a mobile client on an old app version talking to a just-upgraded backend, or a message written to a queue last week being read by a consumer deployed today. This is a distinct concern from anything else in this guide, and it's commonly under-prepared for because it doesn't show up as its own "design X" case study — it shows up as a follow-up question inside almost any other one ("now the schema needs a new field — walk me through the rollout").</p>
+<p><strong>Encoding formats, broadly:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Shape</th>
+<th>Trade-off</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>JSON / XML</strong></td>
+<td>Text-based, self-describing (field names travel with every record)</td>
+<td>Human-readable and universally supported, at the cost of size (repeating every field name in every record) and ambiguity (no built-in distinction between an integer and a float, weak support for binary data)</td>
+</tr>
+<tr>
+<td><strong>Language-specific (e.g., Java Serializable, Python pickle)</strong></td>
+<td>Native to one language's object model</td>
+<td>Fast to use within a single codebase, but locks you into that language and often that exact class definition — a poor choice for anything crossing a service boundary or a long time horizon</td>
+</tr>
+<tr>
+<td><strong>Schema-based binary (Protocol Buffers, Thrift, Avro)</strong></td>
+<td>A separate schema defines field names and types once; encoded records carry only field <strong>tags</strong> (numbers) or, in Avro's case, no tags at all</td>
+<td>Compact and fast, and — the real point — the schema itself becomes the tool for managing change safely</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Protocol Buffers / Thrift, mechanically:</strong> every field in the schema gets a <strong>number</strong> (its tag), and only that number (not the field name) is written into the encoded bytes. This single design choice is what makes safe evolution possible: you can rename a field freely (the tag, not the name, is what's encoded), and the rule for compatibility becomes simple and mechanical — <strong>never reuse an old tag number for a new field</strong>, and any <strong>new field must be optional or have a default</strong> (so old code, which has never heard of it, can simply skip it).</p>
+<p><strong>Avro takes a different approach</strong> — no tags at all in the encoded data, just values packed tightly back-to-back in schema-defined order. This makes Avro even more compact, but means a reader <strong>must</strong> have the exact writer's schema to parse the bytes at all; Avro's actual trick for evolution is that a reader is handed <em>both</em> the schema the data was written with and the schema it wants to read as, and a resolution process matches fields by name between the two — which is what lets a large, frequently-changing dataset (Avro's classic use case) evolve without needing to update every consumer in lockstep.</p>
+<p><strong>Backward and forward compatibility, defined precisely</strong> (a distinction worth stating exactly, since the two directions fail differently and get confused constantly):</p>
+<ul>
+<li><strong>Backward compatibility</strong> — newer code can read data written by older code. This is the direction you need for your own rolling deploys: today's consumer must still understand yesterday's messages sitting in a queue.</li>
+<li><strong>Forward compatibility</strong> — older code can read data written by newer code. This is the direction you need when a producer is upgraded before all its consumers are — a newer service writing a new field that an old, not-yet-upgraded consumer will simply ignore, rather than crash on.</li>
+</ul>
+<p>A safe rollout of any schema change is really a rollout of <strong>both</strong> directions at once across however many services touch that data, and the two safe operations that never break either direction are: <strong>adding a new optional field with a default</strong>, and <strong>removing a field that was already optional</strong> — the classic "you'll shoot yourself in the foot" moves are making a field required (breaks backward compatibility for older writers) or repurposing a tag/field name for something else entirely (breaks both directions silently, since old and new code both parse it, just as different, wrong things).</p>
+<p><strong>Where this shows up as three distinct "dataflow modes," each with a different evolution constraint:</strong></p>
+<ol>
+<li><strong>Through a database</strong> — a row written years ago by old code must still be read correctly by today's code (and vice versa, if you ever roll back a deploy) — this is backward AND forward compatibility, indefinitely, since old rows don't get rewritten just because the schema changed.</li>
+<li><strong>Through services (REST/RPC)</strong> — a client and server are upgraded independently, so an API contract needs the same two-directional discipline as above; this is the concrete justification for the "additive, versioned changes" API-design advice in Section 2.2, not an unrelated best practice.</li>
+<li><strong>Through a message queue/stream</strong> — a message can sit in a durable log (Section 2.8) for a long time before being consumed, so the producer that wrote it and the consumer that eventually reads it may be running code from very different points in time — arguably the mode where schema discipline matters most, since there's no way to "just query the current version" the way a request/response API allows.</li>
+</ol>
+<hr/>
+<div class="sd-remarks-slot" data-key="219-data-encoding-schema-evolution"></div>

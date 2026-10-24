@@ -1,0 +1,250 @@
+# Striver's Playlists - Complete Topic & Problem Links Index
+# Format: n ;; title ;; LeetCode slug (https://leetcode.com/problems/<slug>) ;; GFG path (https://www.geeksforgeeks.org/<path>) ; '-' means N/A
+
+## Bit Manipulation Playlist
+1 ;; Introduction to Bit Manipulation | 1's 2's Complement | Bit Operators ;; power-of-two/ ;; check-whether-k-th-bit-is-set-or-not-set-2/
+2 ;; Must Know Tricks in Bit Manipulation | Swap two numbers without third variable ;; number-of-1-bits/ ;; swap-all-odd-and-even-bits/
+3 ;; Minimum Bit Flips to Convert Number | Bit Manipulation ;; minimum-bit-flips-to-convert-number/ ;; count-number-of-bits-to-be-flipped-to-convert-a-to-b/
+4 ;; Power Set | Bit Manipulation ;; subsets/ ;; find-all-possible-subsets-of-given-subset/
+5 ;; Single Number-I | Bit Manipulation ;; single-number/ ;; find-the-element-that-appears-once-in-sorted-array/
+6 ;; Single Number II | Bit Manipulation ;; single-number-ii/ ;; find-the-element-that-appears-once/
+7 ;; Single Number III | Bit Manipulation ;; single-number-iii/ ;; find-the-two-numbers-with-odd-occurs-in-an-unsorted-array/
+8 ;; XOR of Numbers in a Given Range | Bit Manipulation ;; find-the-xor-of-numbers-which-appear-twice/ ;; calculate-xor-from-1-to-n/
+9 ;; Divide Two Integers without using Multiplication and Division Operators | Bit Manipulation ;; divide-two-integers/ ;; divide-two-integers-without-using-multiplication-division-and-mod-operator/
+
+## Maths Playlist
+1 ;; Count Digits ;; - ;; count-digits-in-a-given-integer/
+2 ;; Reverse a Number ;; reverse-integer/ ;; write-a-program-to-reverse-digits-of-a-number/
+3 ;; Check Palindrome ;; palindrome-number/ ;; check-if-a-number-is-palindrome-set-2/
+4 ;; GCD / HCF ;; - ;; euclidean-algorithms-basic-and-extended/
+5 ;; Armstrong Numbers ;; - ;; armstrong-numbers/
+6 ;; Print all Divisors ;; - ;; find-all-divisors-of-a-natural-number/
+7 ;; Check for Prime ;; - ;; prime-numbers/
+8 ;; Print Prime Factors of a Number ;; - ;; print-all-prime-factors-given-number/
+9 ;; All Divisors of a Number (optimized) ;; - ;; find-divisors-natural-number-set-1/
+10 ;; Sieve of Eratosthenes ;; count-primes/ ;; sieve-of-eratosthenes/
+11 ;; Prime Factorization using Sieve ;; - ;; prime-factorization-using-sieve-o-log-n-multiple-queries/
+12 ;; Power (x^n) ;; powx-n/ ;; write-a-c-program-to-calculate-powxn/
+13 ;; All Prime Factors of Queries ;; - ;; prime-factorization-using-sieve-o-log-n-multiple-queries/
+
+## Graph Playlist
+1 ;; Introduction to Graph ;; - ;; introduction-to-graphs-data-structure-and-algorithms-tutorials/
+2 ;; Graph Representation in C++ / Java ;; - ;; graph-and-its-representations/
+3 ;; Connected Components ;; - ;; connected-components-in-an-undirected-graph/
+4 ;; BFS (Breadth-First Search) ;; - ;; breadth-first-search-or-bfs-for-a-graph/
+5 ;; DFS (Depth-First Search) ;; - ;; depth-first-search-or-dfs-for-a-graph/
+6 ;; Number of Provinces ;; number-of-provinces/ ;; problems/number-of-provinces/1
+7 ;; Number of Islands ;; number-of-islands/ ;; find-the-number-of-islands/
+8 ;; Flood Fill Algorithm ;; flood-fill/ ;; flood-fill-algorithm/
+9 ;; Rotting Oranges ;; rotting-oranges/ ;; rotten-oranges/
+10 ;; Detect Cycle in an Undirected Graph (BFS) ;; - ;; detect-cycle-in-an-undirected-graph-using-bfs/
+11 ;; Detect Cycle in an Undirected Graph (DFS) ;; - ;; detect-cycle-in-an-undirected-graph/
+12 ;; 0/1 Matrix (Distance of nearest cell having 1) ;; 01-matrix/ ;; distance-of-nearest-cell-having-1-in-a-binary-matrix/
+13 ;; Surrounded Regions (Replace 'O' with 'X') ;; surrounded-regions/ ;; replace-os-with-xs/
+14 ;; Number of Enclaves ;; number-of-enclaves/ ;; problems/number-of-enclaves/1
+15 ;; Word Ladder I ;; word-ladder/ ;; word-ladder/
+16 ;; Word Ladder II ;; word-ladder-ii/ ;; word-ladder-ii/
+17 ;; Is Graph Bipartite? (BFS) ;; is-graph-bipartite/ ;; bipartite-graph/
+18 ;; Is Graph Bipartite? (DFS) ;; is-graph-bipartite/ ;; bipartite-graph/
+19 ;; Detect Cycle in a Directed Graph (DFS) ;; - ;; detect-cycle-in-a-directed-graph/
+20 ;; Find Eventual Safe States ;; find-eventual-safe-states/ ;; problems/eventual-safe-states/1
+21 ;; Topological Sort (DFS) ;; - ;; topological-sorting/
+22 ;; Kahn's Algorithm (Topological Sort BFS) ;; - ;; prerequisite-tasks/
+23 ;; Cycle in a Directed Graph (BFS / Kahn's) ;; - ;; detect-cycle-in-a-directed-graph-using-bfs/
+24 ;; Course Schedule I & II ;; course-schedule/ ;; problems/course-schedule/1
+25 ;; Find First Non-Repeating Character (Alien Dictionary) ;; alien-dictionary/ ;; alien-dictionary/
+26 ;; Shortest Path in Undirected Graph with Unit Weights ;; - ;; shortest-path-in-undirected-graph-having-unit-distance/
+27 ;; Shortest Path in Directed Acyclic Graph (DAG) using Topological Sort ;; - ;; shortest-path-for-directed-acyclic-graphs/
+28 ;; Dijkstra's Algorithm (Priority Queue) ;; network-delay-time/ ;; implementing-dijkstra-algorithm-set-1-adjacency-matrix/
+29 ;; Dijkstra's Algorithm (Set) ;; network-delay-time/ ;; implementing-dijkstra-algorithm-using-set/
+30 ;; Shortest Path in Binary Matrix ;; shortest-path-in-binary-matrix/ ;; shortest-path-in-a-binary-maze/
+31 ;; Path With Minimum Effort ;; path-with-minimum-effort/ ;; problems/path-with-minimum-effort/1
+32 ;; Cheapest Flights Within K Stops ;; cheapest-flights-within-k-stops/ ;; problems/cheapest-flights-within-k-stops/1
+33 ;; Minimum Multiplication to Reach End ;; - ;; problems/minimum-multiplications-to-reach-end/1
+34 ;; Number of Ways to Arrive at Destination ;; number-of-ways-to-arrive-at-destination/ ;; problems/number-of-ways-to-arrive-at-destination/1
+35 ;; Bellman-Ford Algorithm ;; - ;; detect-negative-cycle-graph-bellman-ford/
+36 ;; Floyd Warshall Algorithm ;; find-the-city-with-the-smallest-number-of-neighbors-at-a-threshold-distance/ ;; floyd-warshall-algorithm-dp-16/
+37 ;; Prims Algorithm (Minimum Spanning Tree) ;; - ;; prims-minimum-spanning-tree-mst-greedy-algo-5/
+38 ;; Disjoint Set (Union-Find) ;; - ;; disjoint-set-data-structures/
+39 ;; Kruskal's Algorithm ;; - ;; kruskals-minimum-spanning-tree-algorithm-greedy-algo-2/
+40 ;; Number of Operations to Make Network Connected ;; number-of-operations-to-make-network-connected/ ;; problems/operations-to-make-network-connected/1
+41 ;; Most Stones Removed with Same Row or Column ;; most-stones-removed-with-same-row-or-column/ ;; problems/most-stones-removed-with-same-row-or-column/1
+42 ;; Accounts Merge ;; accounts-merge/ ;; problems/accounts-merge/1
+43 ;; Number of Islands II ;; number-of-islands-ii/ ;; problems/number-of-islands-ii/1
+44 ;; Bridges in Graph (Tarjan's Algorithm) ;; critical-connections-in-a-network/ ;; bridge-in-a-graph/
+45 ;; Articulation Point in Graph ;; - ;; articulation-points-or-cut-vertices-in-a-graph/
+46 ;; Kosaraju's Algorithm (Strongly Connected Components) ;; maximum-number-of-fish-in-a-grid/ ;; strongly-connected-components/
+
+## Dynamic Programming (DP) Playlist
+1 ;; Introduction to Dynamic Programming ;; fibonacci-number/ ;; nth-fibonacci-number/
+2 ;; Climbing Stairs ;; climbing-stairs/ ;; count-ways-to-reach-the-nth-stair/
+3 ;; Frog Jump (DP-3) ;; - ;; minimum-cost-path-left-right-bottom-and-top-moves-allowed/
+4 ;; Frog Jump with k Distances ;; - ;; problems/minimal-cost/1
+5 ;; Maximum Sum of Non-Adjacent Elements ;; house-robber/ ;; stickler-thief/
+6 ;; House Robber II ;; house-robber-ii/ ;; problems/house-robber-ii/1
+7 ;; Ninja's Training ;; - ;; problems/geek-training/1
+8 ;; Grid Unique Paths ;; unique-paths/ ;; count-possible-paths-top-left-bottom-right-dfsh-matrix/
+9 ;; Unique Paths II ;; unique-paths-ii/ ;; unique-paths-in-a-grid-with-obstacles/
+10 ;; Minimum Path Sum in Grid ;; minimum-path-sum/ ;; min-cost-path-dp-6/
+11 ;; Triangle Path Sum ;; triangle/ ;; triangle-path-sum/
+12 ;; Minimum/Maximum Falling Path Sum ;; minimum-falling-path-sum/ ;; maximum-path-sum-in-matrix/
+13 ;; 3-D DP: Ninja and His Friends (Cherry Pickup II) ;; cherry-pickup-ii/ ;; problems/cherry-pickup-ii/1
+14 ;; Subset Sum Equal to Target ;; - ;; subset-sum-problem-dp-25/
+15 ;; Partition Equal Subset Sum ;; partition-equal-subset-sum/ ;; partition-subset-sum-dp-25/
+16 ;; Partition Array Into Two Arrays With Minimum Sum Difference ;; partition-array-into-two-arrays-to-minimize-sum-difference/ ;; partition-a-set-into-two-subsets-such-that-the-difference-of-subset-sums-is-minimum/
+17 ;; Counts Subsets with Sum K ;; - ;; perfect-sum-problem-print-subsets-given-sum/
+18 ;; Partitions with Given Difference ;; - ;; problems/partitions-with-given-difference/1
+19 ;; Assign Cookies / Target Sum ;; target-sum/ ;; problems/target-sum/1
+20 ;; Coin Change ;; coin-change/ ;; coin-change-dp-7/
+21 ;; Target Sum / Minimum Coins ;; - ;; problems/minimum-coins1852/1
+22 ;; Coin Change 2 ;; coin-change-ii/ ;; coin-change-dp-7/
+23 ;; Unbounded Knapsack ;; - ;; unbounded-knapsack-unpack-items-with-given-weights-and-values/
+24 ;; Rod Cutting Problem ;; - ;; cutting-a-rod-dp-13/
+25 ;; Longest Common Subsequence ;; longest-common-subsequence/ ;; longest-common-subsequence-dp-4/
+26 ;; Print Longest Common Subsequence ;; - ;; print-longest-common-subsequence/
+27 ;; Longest Common Substring ;; - ;; longest-common-substring-dp-29/
+28 ;; Longest Palindromic Subsequence ;; longest-palindromic-subsequence/ ;; longest-palindromic-subsequence-dp-12/
+29 ;; Minimum Insertions to Make String Palindrome ;; minimum-insertion-steps-to-make-a-string-palindrome/ ;; minimum-insertions-to-form-a-palindrome-dp-28/
+30 ;; Minimum Deletions/Insertions to Convert String A to B ;; delete-operation-for-two-strings/ ;; minimum-number-of-deletions-and-insertions-to-transform-one-string-into-another/
+31 ;; Shortest Common Supersequence ;; shortest-common-supersequence/ ;; shortest-common-supersequence/
+32 ;; Distinct Subsequences ;; distinct-subsequences/ ;; find-number-times-string-occurs-given-string/
+33 ;; Edit Distance ;; edit-distance/ ;; edit-distance-dp-5/
+34 ;; Wildcard Matching ;; wildcard-matching/ ;; wildcard-pattern-matching/
+35 ;; Best Time to Buy and Sell Stock I, II, III, IV ;; best-time-to-buy-and-sell-stock-iii/ ;; maximum-profit-by-buying-and-selling-a-share-at-most-twice/
+36 ;; Buy and Sell Stock with Transaction Fee ;; best-time-to-buy-and-sell-stock-with-transaction-fee/ ;; problems/stock-buy-and-sell-with-transaction-fee/1
+37 ;; Buy and Sell Stock with Cooldown ;; best-time-to-buy-and-sell-stock-with-cooldown/ ;; problems/stock-buy-and-sell-with-cooldown/1
+38 ;; Longest Increasing Subsequence ;; longest-increasing-subsequence/ ;; longest-increasing-subsequence-dp-3/
+39 ;; Print Longest Increasing Subsequence ;; - ;; printing-longest-increasing-subsequence/
+40 ;; Largest Divisible Subset ;; largest-divisible-subset/ ;; problems/largest-divisible-subset/1
+41 ;; Longest String Chain ;; longest-string-chain/ ;; problems/longest-string-chain/1
+42 ;; Longest Bitonic Subsequence ;; - ;; longest-bitonic-subsequence-dp-104/
+43 ;; Number of Longest Increasing Subsequences ;; number-of-longest-increasing-subsequence/ ;; problems/number-of-longest-increasing-subsequence/1
+44 ;; Matrix Chain Multiplication ;; - ;; matrix-chain-multiplication-dp-8/
+45 ;; Minimum Cost to Cut the Stick ;; minimum-cost-to-cut-a-stick/ ;; problems/minimum-cost-to-cut-a-stick/1
+46 ;; Burst Balloons ;; burst-balloons/ ;; problems/burst-balloons/1
+47 ;; Evaluate Boolean Expression to True ;; parsing-a-boolean-expression/ ;; boolean-parenthesization-problem-dp-37/
+48 ;; Palindrome Partitioning II ;; palindrome-partitioning-ii/ ;; palindromic-partitioning-dp-17/
+49 ;; Partition Array for Maximum Sum ;; partition-array-for-maximum-sum/ ;; problems/maximum-sum-partition/1
+50 ;; Maximum Rectangle Area with all 1's ;; maximal-rectangle/ ;; maximum-size-rectangle-binary-sub-matrix-1s/
+51 ;; Count Square Submatrices with All Ones ;; count-square-submatrices-with-all-ones/ ;; problems/count-square-submatrices-with-all-ones/1
+
+## Advanced DSA Playlist
+1 ;; KMP Algorithm (String Matching) ;; find-the-index-of-the-first-occurrence-in-a-string/ ;; kmp-algorithm-for-pattern-searching/
+2 ;; Rabin Karp Algorithm ;; repeated-string-match/ ;; rabin-karp-algorithm-for-pattern-searching/
+3 ;; Z-Function ;; find-the-index-of-the-first-occurrence-in-a-string/ ;; z-algorithm-linear-time-pattern-searching-algorithm/
+4 ;; Manacher's Algorithm ;; longest-palindromic-substring/ ;; manachers-algorithm-linear-time-longest-palindromic-substring-part-1/
+5 ;; Morris Traversal (Inorder / Preorder) ;; binary-tree-inorder-traversal/ ;; inorder-tree-traversal-without-recursion-and-without-stack/
+6 ;; Flatten a Binary Tree to Linked List ;; flatten-binary-tree-to-linked-list/ ;; flatten-binary-tree-to-flat-linked-list/
+
+## Trie Playlist
+1 ;; Implement Trie (Prefix Tree) ;; implement-trie-prefix-tree/ ;; trie-insert-and-search/
+2 ;; Implement Trie II (Count Words Equal To & Prefix) ;; implement-trie-prefix-tree/ ;; problems/trie-insert-and-search0651/1
+3 ;; Longest Word With All Prefixes ;; longest-word-in-dictionary/ ;; problems/longest-string-in-dictionary--170647/1
+4 ;; Number of Distinct Substrings in a String ;; - ;; count-number-of-distinct-substrings-in-a-string-using-suffix-trie/
+5 ;; Bitwise Maximum XOR of Two Numbers in an Array ;; maximum-xor-of-two-numbers-in-an-array/ ;; find-the-maximum-subarray-xor-in-a-given-array/
+6 ;; Maximum XOR With an Element From Array ;; maximum-xor-with-an-element-from-array/ ;; problems/maximum-xor-with-an-element-from-array/1
+
+## Binary Search Playlist
+1 ;; Binary Search 1D Array ;; binary-search/ ;; binary-search/
+2 ;; Lower Bound & Upper Bound ;; - ;; floor-and-ceil-in-a-sorted-array/
+3 ;; Search Insert Position ;; search-insert-position/ ;; search-insert-position-of-k-in-a-sorted-array/
+4 ;; Floor and Ceil in Sorted Array ;; - ;; floor-and-ceil-in-a-sorted-array/
+5 ;; Find First and Last Position of Element in Sorted Array ;; find-first-and-last-position-of-element-in-sorted-array/ ;; find-first-and-last-positions-of-an-element-in-a-sorted-array/
+6 ;; Count Occurrences of a Number in Sorted Array ;; - ;; count-number-of-occurrences-in-a-sorted-array/
+7 ;; Search in Rotated Sorted Array I ;; search-in-rotated-sorted-array/ ;; search-an-element-in-a-sorted-and-rotated-array/
+8 ;; Search in Rotated Sorted Array II ;; search-in-rotated-sorted-array-ii/ ;; search-in-a-rotated-sorted-array-with-duplicates-allowed/
+9 ;; Find Minimum in Rotated Sorted Array ;; find-minimum-in-rotated-sorted-array/ ;; find-minimum-element-in-a-sorted-and-rotated-array/
+10 ;; Find Out How Many Times Has an Array Been Rotated ;; - ;; find-rotation-count-rotated-sorted-array/
+11 ;; Single Element in a Sorted Array ;; single-element-in-a-sorted-array/ ;; find-the-element-that-appears-once-in-a-sorted-array/
+12 ;; Find Peak Element ;; find-peak-element/ ;; find-a-peak-element-given-array/
+13 ;; Square Root of a Number using Binary Search ;; sqrtx/ ;; square-root-of-an-integer/
+14 ;; Nth Root of a Number using Binary Search ;; - ;; find-nth-root-of-m/
+15 ;; Koko Eating Bananas ;; koko-eating-bananas/ ;; problems/koko-eating-bananas/1
+16 ;; Minimum Days to Make M Bouquets ;; minimum-number-of-days-to-make-m-bouquets/ ;; problems/minimum-days-to-make-m-bouquets/1
+17 ;; Find the Smallest Divisor Given a Threshold ;; find-the-smallest-divisor-given-a-threshold/ ;; problems/smallest-divisor/1
+18 ;; Capacity To Ship Packages Within D Days ;; capacity-to-ship-packages-within-d-days/ ;; problems/capacity-to-ship-packages-within-d-days/1
+19 ;; Kth Missing Positive Number ;; kth-missing-positive-number/ ;; kth-missing-element-in-sorted-array/
+20 ;; Aggressive Cows ;; - ;; aggressive-cows/
+21 ;; Book Allocation Problem ;; - ;; allocate-minimum-number-of-pages-binary-search/
+22 ;; Split Array - Largest Sum ;; split-array-largest-sum/ ;; problems/split-array-largest-sum/1
+23 ;; Painter's Partition Problem ;; - ;; painters-partition-problem/
+24 ;; Minimize Max Distance to Gas Station ;; minimize-max-distance-to-gas-station/ ;; problems/minimize-max-distance-to-gas-station/1
+25 ;; Median of Two Sorted Arrays ;; median-of-two-sorted-arrays/ ;; median-of-two-sorted-arrays-of-different-sizes/
+26 ;; K-th Element of Two Sorted Arrays ;; - ;; k-th-element-of-two-sorted-arrays/
+27 ;; Row with Maximum 1s ;; - ;; find-the-row-with-maximum-number-1s/
+28 ;; Search in a 2D Matrix ;; search-a-2d-matrix/ ;; search-in-row-column-sorted-matrix/
+29 ;; Search in a Row-Column Sorted Matrix II ;; search-a-2d-matrix-ii/ ;; search-in-matrix/
+30 ;; Find Peak Element II ;; find-a-peak-element-ii/ ;; problems/find-peak-element-in-2d-array/1
+31 ;; Matrix Median ;; - ;; median-in-a-row-wise-sorted-matrix/
+
+## Stack and Queue Playlist
+1 ;; Implement Stack using Array ;; - ;; implement-a-stack-using-array/
+2 ;; Implement Queue using Array ;; - ;; queue-using-array/
+3 ;; Implement Stack using Queue ;; implement-stack-using-queues/ ;; implement-stack-using-two-queues/
+4 ;; Implement Queue using Stack ;; implement-queue-using-stacks/ ;; queue-using-stacks/
+5 ;; Implement Stack using Linked List ;; - ;; implement-a-stack-using-singly-linked-list/
+6 ;; Implement Queue using Linked List ;; - ;; implement-queue-using-linked-list/
+7 ;; Check for Balanced Parentheses ;; valid-parentheses/ ;; check-for-balanced-parentheses-in-an-expression/
+8 ;; Implement Min Stack ;; min-stack/ ;; design-a-stack-that-supports-getmin-in-o1-time-and-o1-extra-space/
+9 ;; Infix to Postfix Conversion ;; - ;; stack-set-2-infix-to-postfix/
+10 ;; Prefix to Infix Conversion ;; - ;; prefix-to-infix/
+11 ;; Prefix to Postfix Conversion ;; - ;; prefix-postfix-conversion/
+12 ;; Postfix to Prefix Conversion ;; - ;; postfix-to-prefix/
+13 ;; Postfix to Infix Conversion ;; - ;; postfix-to-infix/
+14 ;; Next Greater Element I ;; next-greater-element-i/ ;; next-larger-element/
+15 ;; Next Greater Element II ;; next-greater-element-ii/ ;; problems/next-greater-element-ii/1
+16 ;; Next Smaller Element ;; - ;; next-smaller-element/
+17 ;; Trapping Rain Water ;; trapping-rain-water/ ;; trapping-rain-water/
+18 ;; Sum of Subarray Minimums ;; sum-of-subarray-minimums/ ;; problems/sum-of-subarray-minimums/1
+19 ;; Asteroid Collision ;; asteroid-collision/ ;; problems/asteroid-collision/1
+20 ;; Sum of Subarray Ranges ;; sum-of-subarray-ranges/ ;; problems/sum-of-subarray-ranges/1
+21 ;; Remove K Digits ;; remove-k-digits/ ;; problems/remove-k-digits/1
+22 ;; Largest Rectangle in Histogram ;; largest-rectangle-in-histogram/ ;; largest-rectangle-under-histogram/
+23 ;; Maximal Rectangle ;; maximal-rectangle/ ;; maximum-size-rectangle-binary-sub-matrix-1s/
+24 ;; Sliding Window Maximum ;; sliding-window-maximum/ ;; maximum-of-all-subarrays-of-size-k/
+25 ;; Stock Span Problem ;; online-stock-span/ ;; the-stock-span-problem/
+26 ;; The Celebrity Problem ;; - ;; the-celebrity-problem/
+27 ;; LRU Cache (Least Recently Used) ;; lru-cache/ ;; lru-cache-implementation/
+28 ;; LFU Cache (Least Frequently Used) ;; lfu-cache/ ;; lfu-cache-implementation/
+
+## Binary Tree Playlist
+1 ;; Introduction to Trees ;; - ;; introduction-to-tree-data-structure/
+2 ;; Binary Tree Traversals (Preorder, Inorder, Postorder) ;; binary-tree-preorder-traversal/ ;; preorder-traversal-of-binary-tree/
+3 ;; Binary Tree Level Order Traversal ;; binary-tree-level-order-traversal/ ;; level-order-tree-traversal/
+4 ;; Preorder, Inorder, Postorder Traversals in One Traversal ;; - ;; tree-traversals-inorder-preorder-and-postorder/
+5 ;; Height of a Binary Tree ;; maximum-depth-of-binary-tree/ ;; find-the-maximum-depth-or-height-of-a-tree/
+6 ;; Check for Balanced Binary Tree ;; balanced-binary-tree/ ;; how-to-determine-if-a-binary-tree-is-balanced/
+7 ;; Diameter of Binary Tree ;; diameter-of-binary-tree/ ;; diameter-of-a-binary-tree/
+8 ;; Binary Tree Maximum Path Sum ;; binary-tree-maximum-path-sum/ ;; find-maximum-path-sum-in-a-binary-tree/
+9 ;; Check if Two Trees are Identical ;; same-tree/ ;; write-an-efficient-c-function-to-find-whether-two-trees-are-identical/
+10 ;; Zig Zag Level Order Traversal ;; binary-tree-zigzag-level-order-traversal/ ;; level-order-traversal-in-spiral-form/
+11 ;; Boundary Traversal of Binary Tree ;; - ;; boundary-traversal-of-binary-tree/
+12 ;; Vertical Order Traversal of Binary Tree ;; vertical-order-traversal-of-a-binary-tree/ ;; print-a-binary-tree-in-vertical-order/
+13 ;; Top View of Binary Tree ;; - ;; print-nodes-in-top-view-of-binary-tree/
+14 ;; Bottom View of Binary Tree ;; - ;; bottom-view-of-binary-tree/
+15 ;; Right/Left View of Binary Tree ;; binary-tree-right-side-view/ ;; print-left-view-of-binary-tree/
+16 ;; Symmetric Binary Tree ;; symmetric-tree/ ;; symmetric-tree-mirror-image-of-itself/
+17 ;; Root to Node Path in Binary Tree ;; binary-tree-paths/ ;; print-root-to-leaf-path-without-using-recursion/
+18 ;; Lowest Common Ancestor (LCA) in Binary Tree ;; lowest-common-ancestor-of-a-binary-tree/ ;; lowest-common-ancestor-in-a-binary-tree/
+19 ;; Maximum Width of Binary Tree ;; maximum-width-of-binary-tree/ ;; maximum-width-of-a-binary-tree/
+20 ;; Children Sum Property in Binary Tree ;; - ;; check-for-children-sum-property-in-a-binary-tree/
+21 ;; Nodes at Distance K in Binary Tree ;; all-nodes-distance-k-in-binary-tree/ ;; print-nodes-at-k-distance-from-root/
+22 ;; Minimum Time Taken to Burn the Binary Tree ;; amount-of-time-for-binary-tree-to-be-infected/ ;; burn-the-binary-tree-starting-from-a-target-node/
+23 ;; Count Complete Tree Nodes ;; count-complete-tree-nodes/ ;; write-a-c-function-to-get-the-size-of-a-binary-tree/
+24 ;; Construct Binary Tree from Inorder and Preorder ;; construct-binary-tree-from-preorder-and-inorder-traversal/ ;; construct-tree-from-given-inorder-and-preorder-traversal/
+25 ;; Construct Binary Tree from Inorder and Postorder ;; construct-binary-tree-from-inorder-and-postorder-traversal/ ;; construct-a-binary-tree-from-postorder-and-inorder-traversals/
+26 ;; Serialize and Deserialize Binary Tree ;; serialize-and-deserialize-binary-tree/ ;; serialize-and-deserialize-an-arbitrary-binary-tree/
+27 ;; Morris Traversal ;; binary-tree-inorder-traversal/ ;; inorder-tree-traversal-without-recursion-and-without-stack/
+28 ;; Flatten Binary Tree to Linked List ;; flatten-binary-tree-to-linked-list/ ;; flatten-binary-tree-to-flat-linked-list/
+
+## Codeforces Essentials Playlist
+1 ;; Introduction to Competitive Programming & Codeforces Setup ;; - ;; competitive-programming-a-complete-guide/
+2 ;; Time Complexity Analysis & Fast I/O ;; - ;; analysis-of-algorithms-set-1-asymptotic-analysis/
+3 ;; Number Theory Basics for CP (GCD, Primes, Sieve) ;; - ;; number-theory-competitive-programming/
+4 ;; Modular Arithmetic & Binary Exponentiation ;; powx-n/ ;; modular-exponentiation-power-in-modular-arithmetic/
+5 ;; Two Pointers and Sliding Window Techniques in CP ;; longest-substring-without-repeating-characters/ ;; window-sliding-technique/
+6 ;; Prefix Sums and Difference Arrays ;; range-sum-query-immutable/ ;; prefix-sum-array-implementation-applications-competitive-programming/
+7 ;; Binary Search on Answer / Monotonic Functions ;; koko-eating-bananas/ ;; binary-search-on-answer-technique/
+8 ;; Bit Manipulation Tricks in CP ;; single-number/ ;; bitwise-algorithms-basics-and-hacks/
+9 ;; Greedy Algorithms & Sorting Strategies ;; jump-game/ ;; greedy-algorithms/
+10 ;; Graphs & Breadth-First Search Shortcuts for Contests ;; shortest-path-in-binary-matrix/ ;; graph-data-structure-and-algorithms/

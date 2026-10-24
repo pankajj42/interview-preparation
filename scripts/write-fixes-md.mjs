@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const root = path.resolve(import.meta.dirname, '..');
+const { fixes, additions } = JSON.parse(fs.readFileSync(path.join(root, 'data/striver-fixes.json'), 'utf8'));
+const esc = (s) => String(s).replace(/\|/g, '\\|');
+let md = `# Striver data fixes\n\nThe two Striver lists were transcribed verbatim into \`scripts/source/\` (diff them against your originals), then ${fixes.length} reviewed fixes were applied by \`scripts/build-striver.mjs\`.\nEach fix asserts the original value before changing it. "N/A" means no link, as in your lists.\n\n| # | Where | What | Before | After |\n|---|---|---|---|---|\n`;
+for (const f of fixes) md += `| ${f.id} | ${esc(f.where)} | ${esc(f.what)} | ${esc(f.before)} | ${esc(f.after)} |\n`;
+md += `\n## Both links kept (sources disagreed, neither could be verified)\n\n`;
+for (const a of additions) md += `- ${a.what}: ${a.links.join('  and  ')}\n`;
+md += `\n## Deliberately left as given\n\n- Loose stand-ins: Max Sum Increasing Subsequence → Maximum Subarray; K-th Element of Two Sorted Arrays → K-th Smallest Prime Fraction; Kth Smallest → the BST problem.\n- Links to a neighbouring problem: Root to Node Path → root-to-leaf versions; Nodes at Distance K → distance-from-root article; Coin Change GFG → count-ways article; Max XOR of Two Numbers GFG → max subarray XOR; Count and Say GFG → Decode the String; K-th Permutation GFG → all permutations.\n- Label oddities: Subset Sum II GFG label; "Mirror of Itself or Not" links the tree-inversion problems; Pascal's "Element at (r, c)" carries the Nth-row links.\n- "Premium" is not shown as a category (the links are ordinary links). Variants stay variants, with notes such as "Variant" shown beside their link.\n`;
+fs.writeFileSync(path.join(root, 'FIXES.md'), md);
+console.log('FIXES.md written');
