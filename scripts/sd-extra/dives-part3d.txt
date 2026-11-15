@@ -1,0 +1,239 @@
+@dive design-a-logging-infrastructure
+NUTSHELL
+A logging platform collects text records from thousands of machines, stores them, and lets engineers **search them in seconds** during an incident. ==Logs are append-only and huge, so the design is a pipeline: collect, buffer, index, store cheaply, and expire.==
+ANALOGY
+A newsroom archive: reporters (services) drop notes into a mailroom (queue), clerks file and index them, and last month's notes are on the shelves while last year's are moved to cheap storage.
+STEPS
+- An agent on each host tails log files and ships lines (batched) to a collector.
+- A durable queue (Kafka-like) buffers bursts so spikes do not overload storage.
+- Processors parse lines into fields (timestamp, level, service, trace ID) and enrich them.
+- Recent data is indexed in a search cluster (hot tier); older data moves to cheaper storage (warm, then cold object storage).
+- Users search by time range and fields; dashboards and alerts run on the same data.
+- Retention rules delete or archive data after a set period.
+IDEAS
+- Buffering :: A queue between collectors and indexers absorbs incident-time bursts (exactly when logs spike) instead of dropping data.
+- Structured logging :: Writing JSON fields rather than free text makes search, filtering and aggregation far cheaper and more reliable.
+- Hot/warm/cold tiers :: Most searches hit the last few hours; keeping older data on cheaper storage cuts cost by a large factor.
+- Sampling and levels :: Debug logs are expensive; sample them or only enable them temporarily.
+SAY
+- "Collection is decoupled from indexing with a queue, so a burst never takes the search cluster down."
+- "I'd add trace IDs to every line so logs, metrics and traces connect."
+AVOID
+- Having applications write directly to the search cluster.
+- Keeping all data on the expensive tier forever.
+
+@dive design-an-online-judge-code-execution-sandbox
+NUTSHELL
+An online judge (like LeetCode) runs **untrusted code** against test cases and returns a verdict. ==The central problem is safety: run strangers' code without letting it harm the machine, read other data or run forever.==
+ANALOGY
+A chemistry lab behind glass: the student's experiment runs in a sealed fume cupboard with limited materials and a timer, and the result is read from outside.
+STEPS
+- The user submits code; the API stores it and enqueues a judging job.
+- A worker takes the job and creates a **sandbox** (container or microVM) with no network, a read-only file system and strict limits.
+- The code is compiled and run against each test case with a time limit and a memory limit.
+- Output is compared with the expected output; the verdict (accepted, wrong answer, time limit, memory limit, runtime error) is produced.
+- The result is stored and pushed to the user (polling or WebSocket).
+- The sandbox is destroyed after every run.
+IDEAS
+- Sandboxing :: Containers with seccomp filters, cgroups and namespaces (or microVMs) restrict system calls, CPU, memory and files so code cannot escape.
+- Resource limits :: Hard time and memory caps stop infinite loops and memory bombs, and the judge kills the process when exceeded.
+- Queue and workers :: Judging is slow and bursty (contests), so a queue with autoscaled workers smooths the load and keeps the API fast.
+- Fairness :: Run on identical, isolated hardware so timing is comparable between submissions.
+SAY
+- "Submissions are asynchronous: API returns a ticket, workers judge, the client polls or subscribes."
+- "Every run is in a fresh, network-less sandbox that is thrown away afterwards."
+AVOID
+- Running user code on the same machines as your services.
+- Forgetting output limits, fork bombs and network access.
+
+@dive design-an-iot-telemetry-ingestion-platform
+NUTSHELL
+Millions of small devices (sensors, meters, vehicles) send tiny messages continuously, often over weak networks. The platform must **accept them reliably, authenticate each device, store the stream and let applications react**. ==Use a lightweight protocol (MQTT), a broker tier at the edge, and a streaming pipeline behind it.==
+ANALOGY
+A weather station network: thousands of little stations phone in their readings, the central office checks each caller's identity, files the readings by time, and rings an alarm if a reading looks dangerous.
+STEPS
+- Devices connect with MQTT over TLS using a per-device certificate or token.
+- A broker cluster receives messages on topics and forwards them into a durable stream (Kafka-like).
+- A rules engine and stream processors filter, enrich and aggregate (for example one-minute averages).
+- Raw data lands in cheap storage; recent data goes to a time-series database for dashboards.
+- Commands to devices travel the other way through the broker (with a stored "device shadow" for offline devices).
+- Over-the-air updates are rolled out gradually.
+IDEAS
+- MQTT :: A small publish-subscribe protocol designed for unreliable networks and low power, with quality-of-service levels.
+- Device shadow :: A cloud copy of each device's desired and reported state, so apps can set a value even when the device is offline and it syncs on reconnect.
+- Backpressure and burst handling :: After an outage, every device reconnects at once; the pipeline needs queues and connection throttling to survive it.
+- Security :: Unique credentials per device and the ability to revoke one compromised device without affecting the rest.
+SAY
+- "Ingestion is a stream pipeline; the broker holds connections, Kafka decouples consumers."
+- "I'd stagger reconnects with jitter to avoid a thundering herd."
+AVOID
+- Using one shared credential for every device.
+- Writing every reading straight into a relational database.
+
+@dive how-bluesky-works-the-at-protocol
+NUTSHELL
+Bluesky is a social network built on an **open protocol (AT Protocol)** where your identity and data are portable. ==Instead of one company owning everything, the protocol splits the system into personal data servers (PDS), relays that stream everything, and app views that build the feeds.==
+ANALOGY
+Email, not WhatsApp: your account is not locked inside one company's app. Your posts live in a data store you can move, and different services can read the public stream to build their own feeds.
+STEPS
+- You have a stable identity (a DID) and a handle (like a domain name) that points to it.
+- Your posts are records stored in your repository on a **PDS**, cryptographically signed and organised as a Merkle tree.
+- The PDS emits a stream of changes; a **relay** collects streams from many PDSes into one firehose.
+- An **AppView** consumes the firehose, indexes posts, follows and likes, and serves timelines and search.
+- **Feed generators** (custom algorithms) return lists of post IDs that an AppView hydrates.
+- Moderation is layered: labelers publish labels, and clients decide what to show.
+IDEAS
+- DID and handle :: A permanent cryptographic ID plus a human-friendly name that can change, so identity survives moving servers.
+- Signed repositories :: Each user's data is a signed Merkle tree, so anyone can verify it has not been tampered with, wherever it is stored.
+- Firehose :: One ordered stream of all public events that many independent services can consume, which makes the ecosystem open.
+- Separation of concerns :: Storage (PDS), distribution (relay) and presentation (AppView, feeds) can each be run by different parties.
+SAY
+- "The key idea is separating data hosting, firehose distribution and indexing, so users can move and algorithms are pluggable."
+- "Verification comes from signatures, not from trusting a server."
+AVOID
+- Describing it as just another centralised social network.
+- Forgetting that the AppView, not the PDS, answers timeline queries.
+
+@dive how-apples-find-my-network-airtag-works
+NUTSHELL
+Find My lets you locate a lost AirTag even though it has no internet or GPS. ==Nearby Apple devices act as anonymous relays: they hear the tag's Bluetooth beacon, attach their own location, and upload it encrypted so only the owner can read it.== Apple cannot see whose device was found or where it is.
+ANALOGY
+You drop a sealed envelope with your name hidden inside on the street. Passers-by who see it write the location on the outside and post it to a mailbox, and only you hold the key that opens the envelope.
+STEPS
+- The AirTag and your phone share a secret key when paired.
+- The tag broadcasts a Bluetooth ID that **changes every 15 minutes**, derived from the key, so it cannot be tracked by outsiders.
+- Any nearby Apple device that hears it encrypts its own location with the tag's current public key and uploads it.
+- Apple stores the encrypted blobs indexed by a hash of the ID; it cannot decrypt them.
+- When you look, your phone computes the recent IDs from the shared key, fetches the matching blobs, decrypts them and shows the location.
+- Anti-stalking rules alert people when an unknown tag travels with them.
+IDEAS
+- Rotating identifiers :: A fresh pseudonym every 15 minutes means a stranger cannot follow one tag over time, but the owner can still regenerate the sequence.
+- End-to-end encryption :: Reporters encrypt to the tag's public key; only the holder of the matching private key (the owner) can decrypt, so the server stores data it cannot read.
+- Crowd-sourced relay :: Hundreds of millions of devices provide coverage with no new infrastructure and no cost to bystanders.
+- Privacy vs safety :: Unwanted-tracking detection must work without revealing the owner's identity, which needs careful design.
+SAY
+- "Privacy comes from rotating keys and end-to-end encryption; the server is a blind mailbox."
+- "Coverage comes from the crowd, not dedicated hardware."
+AVOID
+- Suggesting the tag has GPS or internet.
+- Ignoring the anti-stalking requirement.
+
+@dive how-llm-serving-works-design-chatgpt
+NUTSHELL
+Serving a large language model means running a huge neural network for many users at once on expensive GPUs, producing the answer **one token at a time**. ==The main costs are memory (the model and the KV cache) and keeping GPUs busy by batching many users together.==
+ANALOGY
+A restaurant kitchen with a few very expensive ovens (GPUs): to be profitable, the chef cooks many orders in the same oven at once and starts a new order whenever another finishes.
+STEPS
+- The request passes through a gateway (auth, rate limits) to a scheduler.
+- **Prefill**: the whole prompt is processed in parallel to produce the first token and fill the KV cache.
+- **Decode**: tokens are generated one by one, each reusing the cached keys and values of earlier tokens.
+- **Continuous batching** adds new requests into the running batch as others finish, keeping the GPU saturated.
+- Tokens are streamed back to the user as they are produced (server-sent events or WebSocket).
+- Large models are split across several GPUs (tensor and pipeline parallelism).
+IDEAS
+- KV cache :: Stored attention data for tokens already processed. It saves recomputation but uses lots of GPU memory, which limits how many conversations fit at once.
+- Prefill vs decode :: Prefill is compute-heavy and fast per token; decode is memory-bandwidth-bound and sequential. Separating them improves efficiency.
+- Continuous batching :: Instead of waiting for a whole batch to finish, slot new requests in at every step so GPUs are rarely idle.
+- Quantisation and speculative decoding :: Smaller number formats shrink memory; a small draft model proposes several tokens that the big model verifies at once, speeding up generation.
+SAY
+- "Throughput is about batching and memory; latency is time to first token plus tokens per second."
+- "I'd route by model and keep conversation history to reuse cached prefixes."
+AVOID
+- Treating each request as an independent job on its own GPU.
+- Ignoring the KV cache memory budget.
+
+@dive design-a-rag-based-support-assistant
+NUTSHELL
+A RAG assistant answers questions using **your own documents**. Instead of hoping the model remembers facts, it first retrieves the most relevant passages, then asks the model to answer from them. ==Good answers depend far more on retrieval quality than on the model.==
+ANALOGY
+An open-book exam: the student (the LLM) looks up the relevant pages in the textbook (your documents) first and writes the answer with the pages in front of them, citing the source.
+STEPS
+- **Ingest**: split documents into chunks, create an embedding (a list of numbers) for each, and store them in a vector database with metadata.
+- A user asks a question; it is embedded the same way.
+- **Retrieve**: find the nearest chunks (and optionally combine with keyword search), then rerank them.
+- Build a prompt: instructions, the retrieved chunks and the question.
+- The LLM answers and cites the sources; guardrails check the output.
+- Log feedback and failures so the knowledge base and retrieval can be improved.
+IDEAS
+- Chunking :: Pieces too big dilute meaning; too small lose context. Overlapping chunks of a few hundred tokens are a common start.
+- Hybrid search :: Combine vector similarity (meaning) with keyword matching (exact terms like error codes), then rerank for precision.
+- Access control :: Filter retrieval by what the asking user may see, otherwise the assistant leaks private documents.
+- Evaluation :: Measure retrieval (did the right passage come back?) and answer quality (faithful to sources?) separately; most failures are retrieval failures.
+SAY
+- "I'd evaluate retrieval on its own, add reranking, and force the model to cite and to say 'I do not know'."
+- "Document permissions are applied at retrieval time."
+AVOID
+- Stuffing whole documents into the prompt.
+- Ignoring permissions, freshness and hallucination checks.
+
+@dive design-a-recommendation-system
+NUTSHELL
+A recommendation system suggests items a user is likely to want. At scale it works in **two stages**: a fast step that narrows millions of items to hundreds of candidates, and a slower, smarter model that ranks those hundreds. ==Both stages depend on good signals: what users watched, clicked, skipped and bought.==
+ANALOGY
+A bookshop assistant who first pulls twenty plausible books off the shelves based on what you liked before, then ranks those twenty by thinking carefully about your mood today.
+STEPS
+- Log user events (views, clicks, purchases, skips) into a stream.
+- Offline jobs train models and build embeddings for users and items.
+- **Candidate generation**: use approximate nearest neighbours on embeddings, popular items and recent history to fetch a few hundred items.
+- **Ranking**: a model scores each candidate using richer features from a feature store.
+- **Re-ranking**: apply business rules, diversity, freshness and filtering of already-seen items.
+- Show results, record what happened, and feed that back for the next training run.
+IDEAS
+- Collaborative filtering :: "People like you also liked this": recommendations come from patterns across many users rather than item content.
+- Two-tower embeddings :: One network embeds users, another items, so a nearest-neighbour search finds items close to the user in milliseconds.
+- Cold start :: New users and new items have no history, so use content features, popularity and exploration until data accumulates.
+- Feedback loops :: Recommending only what is popular makes it more popular; deliberate exploration keeps variety and learns new tastes.
+SAY
+- "Retrieval must be cheap and high-recall; ranking can be expensive because it sees few items."
+- "I'd keep features consistent between training and serving with a feature store."
+AVOID
+- Scoring the entire catalogue per request.
+- Ignoring cold start and feedback loops.
+
+@dive design-an-ad-serving-real-time-bidding-system
+NUTSHELL
+When a page loads, an ad slot is auctioned **in about 100 milliseconds**: advertisers bid, the best bid wins, and the ad is shown. ==The whole auction must fit a very tight latency budget while respecting budgets, targeting and fraud checks.==
+ANALOGY
+A lightning-fast auction house: the moment a seat becomes free, bidders raise paddles, the highest wins, and the show goes on, all before the viewer notices.
+STEPS
+- The page asks the ad server for an ad, sending context (page, device, rough location, user segments).
+- The server selects eligible campaigns (targeting, budget left, frequency caps) using in-memory indexes.
+- In real-time bidding, requests are sent to many bidders, who reply with a bid within a strict timeout.
+- An auction (often second-price or first-price) picks the winner, and the ad creative is returned.
+- Impressions and clicks are logged; budgets are decremented and pacing keeps spend smooth across the day.
+- Fraud filters and billing run on the logged events afterwards.
+IDEAS
+- Latency budget :: Every step has a few milliseconds; bidders that miss the timeout are simply ignored, so keep data in memory and avoid slow calls.
+- Pacing :: Spend a daily budget evenly across the day instead of burning it in the first hour.
+- Frequency capping :: Limit how often one user sees the same ad, which needs fast per-user counters.
+- Eventual accuracy of budgets :: Real-time budget counts are approximate for speed; exact reconciliation happens in the billing pipeline afterwards.
+SAY
+- "Serving path is in-memory and sub-100 ms; analytics and billing are asynchronous."
+- "I'd accept small budget overshoot in exchange for latency, then reconcile."
+AVOID
+- Querying a relational database inside the auction.
+- Forgetting fraud, caps and pacing.
+
+@dive design-a-privacy-gdpr-deletion-pipeline
+NUTSHELL
+When a user asks to be forgotten, their data must be **found and deleted everywhere**: databases, caches, search indexes, logs, backups, analytics and third parties, within legal deadlines. ==The difficulty is that data is copied into many systems, so you need to know where everything lives and prove it was removed.==
+ANALOGY
+Recalling every copy of a letter you sent: you need a list of everyone who received a copy, a way to ask each of them to destroy it, and a receipt that proves they did.
+STEPS
+- A deletion request is verified (the user really is who they say) and recorded with a deadline.
+- A **data map** (inventory of systems and the user identifiers they hold) tells the orchestrator which services to call.
+- The orchestrator publishes a delete event; each service deletes or anonymises the user's data and reports completion.
+- Derived data (search indexes, caches, analytics tables) is purged or rebuilt without the user.
+- Backups are handled by expiry or by re-applying deletions on restore.
+- A completion record (not containing the data) is kept as an audit trail.
+IDEAS
+- Data inventory :: You cannot delete what you cannot find, so every service must register what personal data it stores and under which identifier.
+- Orchestration with idempotent deletes :: Deleting twice must be harmless, and the orchestrator retries until every system confirms.
+- Soft then hard delete :: A short grace period (for accidental requests) followed by permanent deletion keeps the process safe and compliant.
+- Pseudonymisation :: Store personal data separately and reference it by an opaque ID, so deleting one record removes the link everywhere.
+SAY
+- "Deletion is an orchestrated workflow with per-service confirmations and an audit trail."
+- "Design storage so personal data is isolated and keyed by one user ID to make deletion tractable."
+AVOID
+- Forgetting caches, logs and analytics copies.
+- Deleting without proof of completion.

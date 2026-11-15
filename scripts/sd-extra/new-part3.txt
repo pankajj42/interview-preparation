@@ -1,0 +1,372 @@
+@new part-3 h4 design-typeahead-search-autocomplete |  | Design Typeahead / Search Autocomplete
+P: As a user types "sys", the box must show the five or ten most useful completions (for example "system design", "sysco") within about 100 ms, on every keystroke. ==It is a read-heavy, latency-critical problem on slowly changing data, so the answer is precomputation: build the suggestions offline and serve them from memory.==
+H: Requirements
+- Return the top 5 to 10 completions for any prefix, ranked by popularity (and optionally personalised).
+- p99 latency under 100 ms; the browser sends a request per keystroke, so traffic is a multiple of search traffic.
+- Trending queries should appear within minutes or hours, not days. Offensive terms must be filtered.
+H: Back-of-the-envelope
+P: 10 million daily users x 10 searches x about 5 keystrokes is roughly 500 million suggestion requests a day, around 6,000 per second on average and perhaps 20,000 at peak. The suggestion data itself is small (hundreds of millions of popular queries), so it fits in memory across a few machines.
+H: Architecture
+MERMAID:
+flowchart LR
+  B["Browser (debounced)"] --> E["CDN / edge cache"]
+  E --> G["API gateway"]
+  G --> S["Suggestion service (in-memory trie shards)"]
+  L["Search query logs"] --> K["Kafka"]
+  K --> A["Aggregation job (counts per query)"]
+  A --> T["Trie builder"]
+  T --> O["Snapshot in object storage"]
+  O --> S
+END
+H: The key idea: a trie with the top results stored at every node
+P: A **trie** is a tree where each step spells one more character. If every node also stores its **top-K completions**, a lookup walks only as many nodes as the prefix is long and returns the answer immediately, with no search below the node. Memory is traded for speed, which is the right trade here.
+H: Keeping it fresh
+- A batch job counts queries from the logs (hourly or daily) and rebuilds the trie, then servers load the new snapshot and swap it in atomically.
+- A small "trending" structure, updated every few minutes from a stream, is merged into results so breaking news appears quickly.
+- Shard by prefix range or by hash of the first characters; replicate each shard for availability.
+H: Making it feel instant on the client
+- **Debounce** keystrokes (wait about 100 to 150 ms), **cancel** stale requests, and **cache** results per prefix in the browser.
+- Short, common prefixes are cached at the CDN; personalised suggestions are blended in on the client or at the gateway.
+H: Trade-offs and follow-ups
+- Freshness versus cost: rebuilding more often is more expensive. Typo tolerance (fuzzy match) multiplies lookup cost, so apply it only when exact results are few.
+- Safety: filter harmful or private completions before they enter the trie.
+- Ranking beyond raw counts: recency, locale and personal history.
+
+@new part-3 h4 design-dropbox-google-drive-file-sync |  | Design Dropbox / Google Drive (File Storage and Sync)
+P: Users keep files in the cloud and see them on every device, share them, and recover old versions. ==The central trick is to cut every file into chunks, identify each chunk by its hash, and transfer only the chunks that are new or changed.== That saves bandwidth, makes uploads resumable and lets identical chunks be stored once.
+H: Requirements
+- Upload, download, share and keep devices in sync, including large files and flaky connections.
+- Version history and conflict handling when two devices edit the same file offline.
+- Fast sync of small edits to big files; strong durability.
+H: Architecture
+MERMAID:
+flowchart LR
+  C["Client (watcher + chunker)"] --> M["Metadata service (database)"]
+  C --> B["Block store (object storage)"]
+  M --> N["Notification service"]
+  N --> C2["Other devices"]
+  C2 --> M
+  C2 --> B
+END
+H: How a sync works
+1. The client notices a changed file and splits it into chunks (for example 4 MB), computing a hash for each.
+2. It asks the metadata service which hashes are missing; chunks that already exist (even from another user) are skipped.
+3. It uploads only the missing chunks to the block store, in parallel and resumably.
+4. It commits a new file version in the metadata service: an ordered list of chunk hashes.
+5. The notification service tells the other devices; they fetch the new metadata and download only the chunks they lack.
+H: Ideas worth explaining
+- **Content-defined chunking** uses a rolling hash to place chunk boundaries based on content, so inserting a few bytes at the start of a file changes one chunk instead of shifting all of them.
+- **Deduplication**: identical hashes are stored once. Across users it saves space but can leak whether a file exists, so some products dedupe only within an account.
+- **Metadata vs data**: file trees, versions and permissions live in a sharded database; bytes live in object storage. They scale independently.
+- **Conflicts**: if both sides changed a file while apart, keep both ("conflicted copy") instead of silently overwriting.
+H: Trade-offs and follow-ups
+- Chunk size: small chunks dedupe and resume better but add metadata overhead.
+- End-to-end encryption prevents server-side search and cross-user dedupe.
+- Sharing links, permissions inheritance and real-time notifications at scale (long-lived connections).
+
+@new part-3 h4 design-a-video-conferencing-system-zoom |  | Design a Video Conferencing System (Zoom)
+P: A meeting needs audio and video between many people with under about 200 ms delay, over networks of very different quality. ==The standard answer is an SFU (selective forwarding unit): every participant sends one stream up, and the server forwards the right copies down to everyone else.==
+H: Why not connect everyone directly?
+P: In a peer-to-peer mesh each of N people sends N-1 streams, so a 10-person call needs 90 streams and quickly overloads phones and uplinks. A server that mixes all video (an MCU) fixes that but is very CPU-hungry. The SFU is the usual compromise: it does not decode video, it only routes packets.
+H: Architecture
+MERMAID:
+flowchart LR
+  A["Participant A"] -->|"RTP over UDP"| S["SFU media server"]
+  B["Participant B"] -->|"RTP over UDP"| S
+  S --> A
+  S --> B
+  S --> C["Participant C"]
+  A -.->|"signalling"| G["Signalling server (WebSocket)"]
+  G -.-> S
+  S --> R["Recorder"]
+END
+H: Main pieces
+- **Signalling** (WebSocket): join the room, exchange session descriptions, mute, raise hand. It carries control messages only.
+- **STUN/TURN**: help devices behind NATs and firewalls find a path; TURN relays media when no direct path works.
+- **Media transport**: audio and video use RTP/SRTP over UDP because a late packet is worthless and retransmitting it would only add delay.
+- **Simulcast**: each sender uploads two or three qualities; the SFU picks the right one for every receiver (big tile versus thumbnail, strong versus weak network).
+H: Keeping quality under bad networks
+- Congestion control estimates available bandwidth and lowers bitrate before packets are lost.
+- Loss recovery uses forward error correction and selective retransmission for important frames; a small jitter buffer smooths arrival times.
+- Audio is prioritised: people tolerate frozen video far better than choppy audio.
+H: Scaling and follow-ups
+- Place SFUs near participants and **cascade** them between regions for global meetings; pick the nearest server when someone joins.
+- Webinars with thousands of viewers send the stream through an SFU to a CDN using HLS at higher latency.
+- End-to-end encryption conflicts with server features such as recording, transcription and cloud mixing.
+
+@new part-3 h4 design-a-full-text-search-system-elasticsearch-style |  | Design a Full-Text Search System (Elasticsearch-style)
+P: Users type words and expect the most relevant documents out of billions, in milliseconds. ==Search engines do not scan documents; they keep an inverted index that maps every word to the list of documents containing it.== The index is derived data, so the primary database stays the source of truth.
+H: Requirements
+- Index billions of documents; keyword queries with relevance ranking, filters and facets.
+- Near-real-time: a new document is searchable within seconds.
+- Horizontally scalable and highly available; reindexing without downtime.
+H: Architecture
+MERMAID:
+flowchart LR
+  D["Source database"] --> K["Change stream (Kafka)"]
+  K --> I["Indexer workers"]
+  I --> S1["Shard 1 (primary + replica)"]
+  I --> S2["Shard 2 (primary + replica)"]
+  Q["Query"] --> C["Coordinator node"]
+  C --> S1
+  C --> S2
+  C --> R["Merge top-K and return"]
+END
+H: How indexing works
+1. **Analysis**: split text into tokens, lowercase, remove stop words, reduce words to stems ("running" becomes "run").
+2. Each term gets a **postings list**: the documents (and positions) where it occurs.
+3. New documents are written into small immutable **segments**; a periodic refresh (about one second) makes them searchable, and background merges combine segments.
+H: How a query works
+- The coordinator sends the query to every shard (scatter), each shard returns its best K matches, and the coordinator merges them (gather).
+- **Ranking** scores matches with TF-IDF or BM25: rare words matter more than common ones, and repeated matches in short documents score higher.
+- Filters (price, date, category) use compact per-field structures and are applied before scoring where possible.
+H: Trade-offs and follow-ups
+- Shard count: too few limits scale, too many tiny shards waste overhead. Documents are placed by hash of ID.
+- Deep pagination is expensive; use a "search after" cursor instead of large offsets.
+- Search is eventually consistent with the database; keep the ability to rebuild the index from the source.
+- Relevance tuning (synonyms, boosts, personalisation) is where most real effort goes.
+
+@new part-3 h4 design-a-distributed-lock-service |  | Design a Distributed Lock Service
+P: Sometimes only one worker may do something at a time: run a scheduled job, update a shared resource, act as leader. A lock service hands out that exclusivity across many machines. ==The hard part is not taking the lock; it is surviving crashes, pauses and network splits without two holders ever believing they own it.==
+H: Requirements
+- Mutual exclusion: at most one holder at a time.
+- No permanent deadlock if a holder crashes (locks expire).
+- Highly available, with waiting clients notified when the lock frees.
+H: Architecture
+MERMAID:
+flowchart LR
+  C1["Client 1"] --> L["Lock cluster (Raft: etcd / ZooKeeper)"]
+  C2["Client 2"] --> L
+  C1 -->|"request + fencing token"| R["Protected resource"]
+  R -->|"rejects lower token"| C2
+END
+H: Building blocks
+- A small **consensus cluster** (three or five nodes running Raft or ZAB) stores lock state, so a majority agreement decides who holds the lock.
+- A lock is a **lease**: the holder keeps it alive with heartbeats; if they stop, the lease expires and the lock is released.
+- Waiters **watch** the lock key and are notified when it is released, instead of polling.
+H: The trap: pauses and fencing tokens
+P: A holder can freeze (a long garbage-collection pause, a stalled VM), its lease expires, another client takes the lock, and then the first one wakes up still believing it holds it. Both write. The fix is a **fencing token**: each grant carries a number that always increases, the client sends it with every write, and the protected resource rejects any request with a token lower than one it has already seen.
+H: Redis-based locks
+- A single Redis `SET key value NX PX ttl` is simple and fast, and fine when occasional double execution is harmless.
+- It does not give the strict guarantee above, because of failover and clock or pause issues. When correctness matters, use a consensus-backed store and fencing tokens.
+H: Trade-offs and follow-ups
+- Prefer not needing a lock: idempotent operations or optimistic concurrency (version checks) avoid the problem altogether.
+- Keep critical sections short and set lease times longer than normal pauses, but not so long that recovery is slow.
+
+@new part-3 h4 design-a-food-delivery-platform-doordash-style |  | Design a Food Delivery Platform (DoorDash / Swiggy)
+P: Three parties meet in one order: the customer, the restaurant and the courier. ==The interesting problems are dispatch (which courier, and when), accurate ETAs, and live tracking, all on top of an ordinary order and payment flow.==
+H: Requirements
+- Browse nearby open restaurants, place an order, pay, and track it live.
+- Assign a courier so food is picked up hot, not left waiting.
+- Show a believable delivery time and handle rejections, delays and cancellations.
+H: Architecture
+MERMAID:
+flowchart LR
+  U["Customer app"] --> API["API gateway"]
+  API --> CAT["Catalogue + geo search"]
+  API --> ORD["Order service (state machine)"]
+  ORD --> PAY["Payment service"]
+  ORD --> DIS["Dispatch service"]
+  DIS --> LOC["Courier location store"]
+  DIS --> CR["Courier app"]
+  ORD --> REST["Restaurant tablet"]
+  LOC --> TRK["Live tracking (WebSocket)"]
+  TRK --> U
+END
+H: The order as a state machine
+P: placed, accepted by the restaurant, preparing, ready, picked up, delivered (or cancelled at defined points). Only valid transitions are allowed, each is stored with a timestamp, and the API is **idempotent** so a double-tap does not create two orders.
+H: Dispatch: when and who
+- Assigning a courier the moment an order is placed wastes their time while food is cooked. Dispatch estimates **preparation time** and calls the courier so they arrive just as the food is ready.
+- Choosing couriers is a matching problem: score nearby couriers by pickup distance, current load and rating, often matching in small **time windows** to optimise globally instead of first-come first-served.
+- Orders from the same restaurant or direction can be **batched** to one courier.
+H: ETA and tracking
+- ETA = preparation time + courier travel time + hand-over, predicted by models from history, current restaurant load and traffic.
+- Courier phones send GPS pings every few seconds into an in-memory location store; the customer app receives updates over a WebSocket.
+H: Trade-offs and follow-ups
+- Accuracy versus promise: show a slightly pessimistic ETA to avoid broken promises.
+- Handling a restaurant that never accepts, or a courier who disappears: timeouts and automatic reassignment.
+- Search must exclude closed or overloaded restaurants in real time.
+
+@new part-3 h4 design-an-ad-click-aggregator-real-time-analytics |  | Design an Ad-Click Aggregator (Real-Time Analytics)
+P: Advertisers want to see clicks per ad per minute within seconds, and are billed from those counts. ==You need both speed and accuracy, so the usual design is a streaming pipeline for fresh numbers plus a batch pipeline that recomputes the exact figures for billing.==
+H: Requirements
+- Count clicks per ad over time windows, queryable with a few seconds of delay.
+- 100,000 or more events per second; no double counting; late and out-of-order events handled.
+- Billing-grade accuracy and an audit trail.
+H: Architecture
+MERMAID:
+flowchart LR
+  C["Click events"] --> CO["Collector"]
+  CO --> K["Kafka (partition by ad id)"]
+  K --> F["Stream processor (windowed counts)"]
+  F --> OL["OLAP store (fast queries)"]
+  K --> RAW["Raw events in object storage"]
+  RAW --> BATCH["Nightly batch recompute"]
+  BATCH --> REC["Reconcile with stream totals"]
+END
+H: Streaming details
+- **Event time, not arrival time**: a click belongs to the minute it happened, even if it arrives late. A **watermark** says "events older than this have arrived", which lets a window close; very late events go to a correction path.
+- **Windows**: tumbling one-minute windows per ad, aggregated and written to the analytics store.
+- **De-duplication**: each click has an ID; the processor keeps recent IDs (with an expiry) and ignores repeats.
+- **Exactly-once effect**: periodic checkpoints plus idempotent writes mean a restart does not double-count.
+H: Skew and hot ads
+P: One viral ad can overload the single partition that owns it. Pre-aggregate with a random "salt" in the key (ad ID plus 0 to 9), then merge the partial counts in a second step.
+H: Why also run batch?
+- Streaming may drop very late events or hit bugs; the batch job recomputes from the raw log and the two totals are reconciled, with the batch figure used for billing.
+- Fraud filtering (bots, repeated clicks) can be improved offline and applied retroactively.
+H: Trade-offs and follow-ups
+- Window size versus freshness; storage cost of raw data versus the ability to reprocess.
+- Query layer: columnar OLAP stores (ClickHouse, Druid, Pinot) are built for these aggregations.
+
+@new part-3 h4 design-pastebin |  | Design Pastebin
+P: Users paste text, get a short link, and anyone with the link can read it, optionally until it expires. It resembles a URL shortener, with one big difference: ==the payload is large, so the text itself goes to object storage while only small metadata lives in the database.==
+H: Requirements
+- Create a paste (up to a few MB), get a unique link, read it fast; optional expiry and private pastes.
+- Read-heavy (many more views than creations); durable storage.
+H: Architecture
+MERMAID:
+flowchart LR
+  U["Client"] --> API["API servers"]
+  API --> KG["Key generation service"]
+  API --> DB["Metadata store (key to location, expiry)"]
+  API --> OS["Object storage (paste text)"]
+  API --> CA["Cache + CDN"]
+  CA --> U
+END
+H: Flow
+1. Create: get a unique key from the key generation service (pre-made base62 strings), store the text in object storage, and save key, owner, expiry and storage path in the metadata store.
+2. Read: look up the key (cache first), then fetch the text from object storage (or the CDN) and return it.
+3. Popular pastes stay in the cache and CDN, so most reads never touch the database.
+H: Ideas worth explaining
+- **Key generation**: a separate service hands out unique keys in ranges to each app server, avoiding collisions and a hot counter.
+- **Expiry**: store an expiry time; reads check it (lazy deletion) and a background sweeper removes expired rows and objects.
+- **Abuse**: rate-limit creation, cap size, scan for malware and secrets, and let owners delete.
+- **Immutability**: a paste never changes, which makes it perfectly cacheable.
+H: Trade-offs and follow-ups
+- Unlisted versus private (needs authentication) pastes; per-user history needs an index by owner.
+- Syntax highlighting is best done in the browser, not on the server.
+
+@new part-3 h4 design-a-digital-wallet-ledger |  | Design a Digital Wallet and Ledger
+P: A wallet holds balances and moves money between users. ==Two rules are non-negotiable: a balance can never go negative by a race, and the same transfer can never be applied twice.== Everything else, including audit and reconciliation, follows from storing money as an immutable ledger.
+H: Requirements
+- Add money, withdraw and transfer between wallets; strong consistency for balances.
+- Idempotent API, full audit trail, no lost or duplicated transfers.
+- Handle hot accounts (a big merchant receiving thousands of payments per second).
+H: Architecture
+MERMAID:
+flowchart LR
+  C["Client"] --> W["Wallet API (idempotency key)"]
+  W --> TX["Transfer service"]
+  TX --> L["Ledger database (double entry)"]
+  TX --> EV["Event stream"]
+  EV --> N["Notifications"]
+  EV --> RC["Reconciliation"]
+  RC --> BK["Bank / PSP files"]
+END
+H: How a transfer works
+1. The client sends the transfer with an **idempotency key**; a repeat returns the first result.
+2. In **one database transaction**: check the sender's balance, write a debit entry and a credit entry, and update both balances. Either all of it happens or none of it.
+3. Concurrency is controlled with row locks or a version check, so two simultaneous transfers cannot both spend the same money.
+4. An event is published for notifications and analytics.
+H: Ideas worth explaining
+- **Double-entry ledger**: every movement is a debit and an equal credit in append-only rows. Corrections are new entries, so history is never rewritten.
+- **Same shard or not**: if both wallets live in one shard, a local transaction is enough. Across shards use a **saga** (debit, then credit, with a compensating refund on failure) or two-phase commit.
+- **Hot accounts**: split a busy merchant balance into several sub-balances that are summed on read, so writes do not all contend on one row.
+- **Money as integers**: store minor units (cents), never floating point.
+H: Trade-offs and follow-ups
+- Strong consistency limits write scale per account; shard by account and keep a transfer within one shard when possible.
+- Limits, fraud checks and regulatory reporting run asynchronously from the event stream.
+
+@new part-3 h4 design-a-live-streaming-platform-twitch-style |  | Design a Live Streaming Platform (Twitch)
+P: A streamer broadcasts live and thousands to millions watch within seconds, while a chat room runs alongside. ==The streaming path is like video-on-demand, but everything must happen in real time, so the key trade-off is latency versus scale.==
+H: Requirements
+- Ingest a live stream, make it watchable on any device within a few seconds of real time.
+- Live chat with moderation; record the stream for replay later (VOD).
+- Handle a huge audience for a single stream without overloading the origin.
+H: Architecture
+MERMAID:
+flowchart LR
+  S["Streamer (RTMP / SRT)"] --> I["Ingest server"]
+  I --> T["Real-time transcoder (several qualities)"]
+  T --> P["Packager (HLS segments)"]
+  P --> O["Origin"]
+  O --> CDN["CDN"]
+  CDN --> V["Viewers"]
+  P --> VOD["Recording to object storage"]
+  V <--> CH["Chat cluster (WebSocket)"]
+END
+H: Video path
+1. The streamer sends video to the nearest ingest point over RTMP or SRT.
+2. A transcoder creates several resolutions in real time, so each viewer can pick one that fits their network.
+3. A packager cuts the video into short segments (about 2 to 6 seconds) listed in a playlist that is constantly updated.
+4. Viewers download segments from the CDN; one origin serves millions because the CDN caches each segment.
+H: Latency versus scale
+- Standard HLS adds 10 to 30 seconds of delay. Low-latency HLS (partial segments) gets to 2 to 5 seconds. WebRTC reaches under a second but is much harder to scale.
+- Shorter segments lower latency but raise request volume and reduce caching efficiency.
+H: Chat at scale
+- A chat room with a million viewers cannot send each message to each person individually. Shard rooms across servers, **batch and coalesce** messages, and **sample** or rate-limit when the room is very busy.
+- Moderation (blocked words, slow mode, bans) runs in the message path.
+H: Trade-offs and follow-ups
+- Transcoding is expensive, so it may be reserved for popular streamers while small ones are offered only the source quality.
+- When a stream starts, many viewers arrive together; protect the origin with request collapsing at the CDN.
+
+@new part-3 h4 design-a-content-delivery-network-cdn |  | Design a Content Delivery Network (CDN)
+P: A CDN keeps copies of content in many cities so users fetch it from a nearby server instead of the faraway origin. ==Its job is to cut latency and shield the origin, and its success is measured by the cache hit ratio.==
+H: Requirements
+- Serve static (and cacheable dynamic) content with low latency worldwide.
+- High hit ratio, quick purge of changed content, TLS, and protection against traffic floods.
+H: Architecture
+MERMAID:
+flowchart LR
+  U["User"] -->|"DNS or anycast"| E["Edge PoP cache"]
+  E -->|"miss"| M["Regional mid-tier cache"]
+  M -->|"miss"| SH["Origin shield"]
+  SH -->|"miss"| OR["Origin servers"]
+  OR --> SH --> M --> E --> U
+END
+H: Routing users to the right place
+- **GeoDNS** answers with the address of the nearest healthy point of presence, based on the resolver's location and server load.
+- **Anycast** announces the same IP from every location, and internet routing sends each user to the closest one, which also spreads DDoS traffic.
+H: Caching rules
+- The origin controls freshness with `Cache-Control` headers (how long to keep a copy). Expired copies are **revalidated** with `ETag` or `If-Modified-Since`, so unchanged files are not downloaded again.
+- The **cache key** says what makes two requests the same (URL, selected headers, device class); a sloppy key fragments the cache.
+- **Purge** requests must reach every location quickly; versioned file names (`app.3f9a.js`) avoid the need to purge at all.
+H: Protecting the origin
+- **Tiered caching**: edge misses go to a regional cache and then a single origin shield, so the origin sees only a trickle.
+- **Request collapsing**: if a thousand users ask for the same missing file at once, only one request goes upstream and the rest wait for it.
+- Inside a PoP, **consistent hashing** spreads files across servers so each file is stored once.
+H: Trade-offs and follow-ups
+- Longer TTLs raise hit ratio but serve staler content.
+- Dynamic content can still benefit from persistent connections and TCP/TLS termination near the user.
+- Security: TLS certificates at the edge, signed URLs for private content, and bot and DDoS filtering.
+
+@new part-3 h4 design-a-multiplayer-game-backend-matchmaking |  | Design a Multiplayer Game Backend and Matchmaking
+P: Players queue for a match, get grouped with others of similar skill and low ping, and play on a server that decides what is true. ==Two systems carry the design: a matchmaker that balances wait time against match quality, and authoritative game servers that stop cheating and keep everyone's view consistent.==
+H: Requirements
+- Fast, fair matches (similar skill, same region, low latency); parties of friends.
+- Real-time gameplay with low latency; resilience to disconnects; protection from cheating.
+H: Architecture
+MERMAID:
+flowchart LR
+  P["Players"] --> GW["Gateway"]
+  GW --> MM["Matchmaker (queues by mode, region, skill)"]
+  MM --> AL["Session allocator"]
+  AL --> GS["Game server fleet (warm pool, autoscaled)"]
+  P <-->|"UDP inputs / state"| GS
+  GS --> ST["Results and rating updates"]
+  ST --> LB["Leaderboard"]
+END
+H: Matchmaking
+- Each player has a **skill rating** (Elo, Glicko or TrueSkill). Queues are split by game mode and region.
+- The matchmaker searches for compatible players; the longer someone waits, the **wider the skill window** becomes, trading match quality for wait time.
+- Parties are matched as a unit, using the team's combined rating.
+- The matched group is handed to the allocator, which starts or reserves a game server close to all of them.
+H: Game servers
+- The server is **authoritative**: clients send only inputs ("move forward, fire"); the server simulates the world and sends the result back. A hacked client cannot simply claim "I hit him".
+- Latency is hidden with **client-side prediction** (move immediately, correct if the server disagrees), **interpolation** of other players, and **lag compensation** when judging hits.
+- Traffic uses UDP at a fixed **tick rate** (for example 30 to 128 updates per second).
+H: Scaling and follow-ups
+- Game servers are stateful and short-lived; keep a **warm pool** and autoscale with queue length, because starting a server takes time.
+- Reconnect support: keep the player's slot for a short grace period.
+- Ratings update after the match from the result; leaderboards reuse the sorted-set design.
+- Anti-cheat combines server-side validation, statistical detection and client integrity checks.

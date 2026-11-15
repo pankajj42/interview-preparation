@@ -7,6 +7,8 @@ import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
 import ExpandMoreRounded from '@mui/icons-material/ExpandMoreRounded';
 import ArrowBackRounded from '@mui/icons-material/ArrowBackRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import Switch from '@mui/material/Switch';
 import type { SdPart } from '@/lib/types';
 import { sdTid } from '@/lib/catalog-ids';
 import { useCount, useDoneMap } from '@/lib/store';
@@ -21,6 +23,8 @@ export function SdPartView({ part, html, prev, next }: { part: SdPart; html: str
   const stars = useCount(tids, 'star');
   const [toc, setToc] = useState(false);
   const [reset, setReset] = useState(false);
+  const [view, setView] = useState({ gl: true, hl: true, extra: true });
+  const flags = [!view.gl && 'no-gl', !view.hl && 'no-hl', !view.extra && 'no-extra'].filter(Boolean).join(' ');
   const navLink = 'card focus-ring flex min-w-0 flex-1 items-center gap-3 px-4 py-3 text-[14px] no-underline hover:border-accent';
   return (
     <div data-section="sd">
@@ -39,7 +43,7 @@ export function SdPartView({ part, html, prev, next }: { part: SdPart; html: str
                 {part.topics.map((t) => (
                   <li key={t.key} className={`flex items-center gap-2 py-1 ${t.level === 4 ? 'pl-6' : ''}`}>
                     <DoneCheck id={sdTid(t.key)} label={t.title} size={20} />
-                    <a href={`#${t.key}`} className="min-w-0 flex-1 truncate text-[13.5px] text-ink no-underline hover:text-accent"><span className="tnum mr-1.5 text-faint">{t.num}</span>{t.title}</a>
+                    <a href={`#${t.key}`} className="min-w-0 flex-1 truncate text-[13.5px] text-ink no-underline hover:text-accent"><span className="tnum mr-1.5 text-faint">{t.num}</span>{t.title}{t.added && <span className="ml-2 rounded-full bg-accent-soft px-1.5 py-px text-[10px] font-bold uppercase tracking-wider text-accent">new</span>}</a>
                     <StarButton id={sdTid(t.key)} label={t.title} size={18} />
                   </li>
                 ))}
@@ -48,7 +52,13 @@ export function SdPartView({ part, html, prev, next }: { part: SdPart; html: str
           </div>
         )}
       </PageHeader>
-      <HtmlFragment scope="sd" html={html} />
+      <div className="card mb-4 flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2 text-[13px]" role="group" aria-label="Reading aids">
+        <span className="font-semibold text-muted">Reading aids</span>
+        <FormControlLabel control={<Switch size="small" checked={view.gl} onChange={(e) => setView({ ...view, gl: e.target.checked })} />} label="Key-term tooltips" />
+        <FormControlLabel control={<Switch size="small" checked={view.hl} onChange={(e) => setView({ ...view, hl: e.target.checked })} />} label="Highlights" />
+        <FormControlLabel control={<Switch size="small" checked={view.extra} onChange={(e) => setView({ ...view, extra: e.target.checked })} />} label="Deep dives" />
+      </div>
+      <HtmlFragment scope="sd" html={html} flags={flags} />
       <div className="mt-6 flex flex-wrap gap-3">
         {prev ? <Link href={`/system-design/${prev.slug}/`} className={navLink}><ArrowBackRounded fontSize="small" /><span className="truncate"><span className="block text-[11px] uppercase tracking-wider text-faint">Previous</span>{prev.title}</span></Link> : <span className="flex-1" />}
         {next ? <Link href={`/system-design/${next.slug}/`} className={`${navLink} justify-end text-right`}><span className="truncate"><span className="block text-[11px] uppercase tracking-wider text-faint">Next</span>{next.title}</span><ArrowForwardRounded fontSize="small" /></Link> : <span className="flex-1" />}

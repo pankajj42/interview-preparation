@@ -1,0 +1,166 @@
+# term | aliases :: plain-English definition. Shown as a tooltip on the first use in each topic of the System Design guide.
+latency :: How long one request takes from send to response. Usually quoted as percentiles (p50, p99); lower is better.
+throughput :: How much work the system finishes per second (requests, messages or bytes).
+QPS | queries per second, RPS :: Queries (requests) per second: the standard way to size a system.
+p99 | p95, p50, tail latency :: The latency that 99% of requests beat. The slowest 1% are worse, and that tail is what unlucky users feel.
+SLA | SLO, SLI :: Service-level agreement / objective / indicator: the promised, targeted or measured reliability, e.g. 99.9% uptime.
+availability :: The share of time the system answers correctly. "Three nines" (99.9%) allows about 8.8 hours of downtime a year.
+horizontal scaling | scale out, scaling out :: Adding more machines to share the load, instead of buying one bigger machine.
+vertical scaling | scale up, scaling up :: Making one machine bigger (more CPU, RAM). Simple, but it has a ceiling and stays a single point of failure.
+single point of failure | SPOF :: One component whose failure takes the whole system down. Remove it with redundancy.
+stateless :: A server that keeps no per-user data between requests, so any server can handle any request.
+sticky session | session affinity :: Always routing a user to the same server. Simple, but it makes scaling and failover harder.
+load balancer :: Spreads incoming requests over many servers and stops sending traffic to the dead ones.
+reverse proxy :: A server in front of your servers that forwards requests and often adds TLS, caching and routing.
+API gateway :: The single front door for clients: routing, authentication, rate limiting and request shaping.
+CDN :: Content delivery network: servers around the world that cache content close to users to cut latency.
+DNS :: The internet's phone book: turns names like example.com into IP addresses.
+anycast :: Many servers around the world share one IP address, and the network routes each user to the nearest one.
+TTL :: Time to live: how long a cached value or DNS answer stays valid before it must be refreshed.
+cache hit | cache miss, hit rate :: A hit finds the data in the cache (fast); a miss must go to the slower source. Hit rate = hits / total requests.
+cache invalidation :: Removing or refreshing cached data when its source changes. Famously hard to get right.
+write-through :: Write to the cache and the database together, so the cache is always fresh but each write is slower.
+write-back | write-behind :: Write to the cache first and flush to the database later. Fast, but data can be lost if the cache dies first.
+cache-aside | lazy loading :: The app checks the cache first; on a miss it reads the database and then fills the cache.
+cache stampede | thundering herd, dogpile :: Many requests miss the same expired key at once and all hit the database. Fix it with locks, jittered TTLs or early refresh.
+hot key | hot partition, hotspot :: One key or shard that gets far more traffic than the rest and overloads a single machine.
+eviction | LRU, LFU :: Choosing what to throw out when a cache is full. LRU drops the least recently used item, LFU the least frequently used.
+sharding | shard, partitioning :: Splitting data across machines by a key, so each machine holds only part of it.
+hash partitioning | range partitioning :: Sharding by a hash of the key (even spread) or by key ranges (good for range scans, risk of hotspots).
+replication | replica, replicas :: Keeping copies of data on several machines for safety and for extra read capacity.
+read replica :: A copy of the database that serves reads only, taking load off the primary.
+leader-follower | primary-replica, master-slave :: One node accepts writes (the leader) and copies them to followers that serve reads.
+multi-leader | multi-master :: Several nodes accept writes and sync with each other. Lower write latency, but conflicts must be resolved.
+leaderless | Dynamo-style :: Any replica can accept writes, and quorum reads and writes keep data consistent enough (Cassandra, Dynamo).
+leader election :: Machines agreeing on who is in charge right now, so only one of them makes decisions.
+consensus | Raft, Paxos :: A protocol that lets a group of machines agree on one value even when some fail. Raft and Paxos are the famous ones.
+quorum :: The majority (or agreed minimum) of replicas that must answer for a read or write to count.
+CAP theorem :: When the network splits, you must choose: stay consistent (refuse some requests) or stay available (maybe return stale data).
+PACELC :: Extends CAP: if Partitioned choose Availability or Consistency; Else (normal operation) choose Latency or Consistency.
+eventual consistency :: Replicas may disagree for a short while but converge to the same value once writes stop.
+strong consistency | linearizability, linearizable :: Every read sees the latest completed write, as if there were only one copy of the data.
+read-your-writes :: After you write something, your own later reads show it, even if other users still see old data for a moment.
+ACID :: Transaction promises: Atomic (all or nothing), Consistent, Isolated (no interference) and Durable (survives crashes).
+BASE :: The looser NoSQL counterpart to ACID: Basically Available, Soft state, Eventually consistent.
+transaction :: A group of operations that succeed or fail as one unit.
+isolation level :: How much concurrent transactions can see of each other's work (read committed, snapshot, serializable).
+MVCC :: Multi-version concurrency control: the database keeps old row versions so readers never block writers.
+optimistic concurrency | optimistic locking :: Assume there is no conflict, detect one at commit time with a version number, and retry if someone else changed the row.
+pessimistic locking :: Lock the data first so nobody else can change it while you work, at the cost of waiting.
+deadlock :: Transactions that each wait for a lock another one holds, so none can move.
+race condition :: A bug where the result depends on the unlucky timing of concurrent operations.
+two-phase commit | 2PC :: Commits one transaction across several databases: everyone votes "ready", then everyone commits. Safe, but blocks if the coordinator dies.
+saga :: A long business operation split into local steps, each with an undo ("compensating") step in case a later step fails.
+outbox pattern | transactional outbox :: Save the event in an outbox table in the same transaction as the data, then publish it later, so events are never lost or invented.
+change data capture | CDC :: Reading a database's change log to stream every insert, update and delete to other systems.
+write-ahead log | WAL :: An append-only log written before a change is applied, so the database can recover after a crash.
+LSM tree | LSM-tree, SSTable :: Storage design that buffers writes in memory and flushes sorted files. Great for heavy writes (Cassandra, RocksDB).
+B-tree | B+ tree :: The classic balanced-tree index of most relational databases: strong for reads and range scans.
+compaction :: Background merging of sorted files to drop old versions and keep reads fast (used by LSM stores).
+tombstone :: A marker that says "this was deleted", kept so deletes reach all replicas and the data is not resurrected.
+read repair | anti-entropy :: Fixing stale replicas: on a read that finds disagreement, or with a background job that compares and syncs data.
+hinted handoff :: If a replica is down, another node temporarily keeps its writes and hands them over when it returns.
+Merkle tree :: A tree of hashes used to compare two large datasets quickly and find exactly which parts differ.
+bloom filter :: A tiny structure that answers "definitely not here" or "maybe here", saving expensive lookups.
+HyperLogLog :: Counts unique items (such as daily visitors) with only a few KB of memory and about 1% error.
+count-min sketch :: A compact table that estimates how often each item appeared. Used for top-K and heavy hitters.
+consistent hashing :: Maps keys to servers so that adding or removing a server moves only a small share of the keys.
+virtual nodes | vnodes :: Each server owns many small slices of the hash ring, which balances load and eases rebalancing.
+gossip protocol | gossip :: Nodes regularly swap what they know with random peers, so information spreads without a central coordinator.
+vector clock :: Per-node version counters that tell whether two updates are ordered or truly concurrent.
+CRDT :: Data types built so that concurrent edits on different replicas merge automatically without conflicts.
+operational transformation :: A technique for real-time collaborative editing that rewrites concurrent edits so everyone ends with the same document.
+split brain :: After a network failure, two parts of a cluster both believe they are in charge and accept conflicting writes.
+fencing token :: An ever-increasing number handed out with each lock or lease, so storage can reject a stale holder that wakes up late.
+lease :: A lock that expires by itself, so a crashed holder cannot block everyone forever.
+heartbeat :: A small periodic "I am alive" message used to detect dead nodes.
+idempotency key :: A unique ID sent with a request so the server can recognise a retry and not repeat the action.
+exponential backoff | backoff, jitter :: Retrying failed calls after growing, randomised pauses so many clients do not hammer a struggling service together.
+circuit breaker :: Stops calling a failing dependency for a while so it can recover and callers fail fast instead of piling up.
+bulkhead :: Giving each dependency its own pool of threads or connections, so one failure cannot sink the whole service.
+backpressure :: A slow consumer signalling producers to slow down, instead of letting queues grow without limit.
+load shedding :: Deliberately rejecting low-priority requests when overloaded, so the important ones still succeed.
+rate limiting | rate limiter :: Capping how many requests a user can make in a time window, to protect the service and keep things fair.
+token bucket :: A bucket refills with tokens at a steady rate and each request takes one. It allows short bursts but caps the average rate.
+leaky bucket :: Requests enter a queue that drains at a fixed rate, smoothing bursts into a steady flow.
+sliding window :: Counting requests over a moving time window, which avoids the burst-at-the-boundary problem of fixed windows.
+throttling :: Slowing or limiting a client's request rate (a softer cousin of blocking it).
+dead letter queue | DLQ :: A side queue that collects messages that keep failing, so they can be inspected without blocking the rest.
+at-least-once :: Delivery guarantee: a message is never lost but may arrive more than once, so consumers must be idempotent.
+exactly-once :: Each message takes effect once. In practice this is at-least-once delivery plus idempotent processing.
+idempotency | idempotent :: Doing the same request twice has the same effect as doing it once. This makes retries safe, e.g. a payment is never charged twice.
+publish-subscribe | pub/sub :: Producers publish to a topic and any number of independent subscribers each receive a copy.
+consumer group :: Several consumers that split a topic's partitions between them, so each message is handled by one member.
+event sourcing :: Store every change as an immutable event; the current state is rebuilt by replaying the events.
+CQRS :: Command-Query Responsibility Segregation: separate models for writing and for reading, each tuned for its job.
+webhook :: A callback URL: a service calls you when something happens, instead of you asking repeatedly.
+polling :: Repeatedly asking "anything new?". Simple, but wasteful compared with push.
+microservices :: Splitting an app into small, independently deployable services that each own their data.
+monolith :: One deployable application with all features: simple to build and test, harder to scale across teams.
+service mesh | sidecar :: A layer of proxies beside each service that handles retries, TLS and metrics so app code does not have to.
+multi-tenancy | multi-tenant :: One system serving many customers (tenants) while keeping their data and performance separate.
+REST :: A style of HTTP API built around resources and standard verbs (GET, POST, PUT, DELETE).
+gRPC :: A fast binary RPC framework over HTTP/2 using Protocol Buffers, common between internal services.
+GraphQL :: A query language where the client asks for exactly the fields it needs from one endpoint.
+WebSocket :: A long-lived two-way connection between browser and server, used for real-time messaging.
+long polling :: The client asks, the server holds the request open until there is news, then the client asks again.
+server-sent events | SSE :: A one-way stream from server to browser over plain HTTP, good for live updates.
+WebRTC :: Browser technology for real-time audio, video and data, often peer-to-peer.
+SFU :: Selective forwarding unit: a server that receives each participant's video once and forwards it to the others without mixing it.
+TCP :: Reliable, ordered delivery over the network, with retransmission and congestion control.
+UDP :: Fast, connectionless delivery with no guarantees. Used for video, games and DNS.
+QUIC | HTTP/3 :: A modern transport over UDP that avoids head-of-line blocking and connects faster; the base of HTTP/3.
+pagination | cursor-based pagination, keyset pagination :: Returning long lists in pages. Cursor-based pagination continues from "after this item", which is stable and fast.
+fan-out | fanout, fan-out on write, fan-out on read :: Copying one event to many recipients, either when it is written (precomputed feeds) or when it is read (assembled on demand).
+denormalization :: Storing duplicate data so reads are fast, at the cost of extra work to keep the copies in sync.
+normalization :: Organising data so each fact is stored once, avoiding duplicates and update anomalies.
+secondary index :: An extra lookup structure on a non-primary column, so queries on it do not scan everything.
+inverted index :: Maps each word to the list of documents that contain it. The heart of every search engine.
+trie :: A tree where each step spells the next character. Ideal for prefix lookups such as autocomplete.
+geohash | quadtree, S2 cell, H3 :: Ways of turning latitude and longitude into cells or IDs, so "find things nearby" becomes a cheap lookup.
+erasure coding :: Splitting data into fragments plus parity so it survives several losses using far less space than full copies.
+object storage | blob storage :: Flat, cheap, very durable storage of files as objects with IDs (like S3), accessed over HTTP.
+OLTP :: Online transaction processing: many small reads and writes. This is your application database.
+OLAP :: Online analytical processing: big scans and aggregates for reports, usually on columnar storage.
+columnar storage | Parquet :: Storing each column together so analytics read only the columns they need and compress well.
+batch processing | MapReduce :: Processing large stored datasets in big periodic jobs, optimising for throughput rather than latency.
+stream processing | Flink :: Processing events continuously as they arrive, for low-latency results.
+watermark :: A stream processor's estimate that "all events older than T have arrived", used to close time windows.
+Lambda architecture | Kappa architecture :: Lambda runs a batch and a streaming path side by side; Kappa uses only streaming and replays the log when needed.
+ETL | ELT :: Extract-Transform-Load: moving data from sources into a warehouse, transforming before (ETL) or after (ELT) loading.
+observability :: Being able to understand what a system is doing from its outputs: metrics, logs and traces.
+distributed tracing | OpenTelemetry :: Following one request across many services, hop by hop, to find where the time goes.
+canary release | canary :: Roll a new version out to a small share of traffic first and watch for problems.
+blue-green deployment | blue/green :: Run the old (blue) and new (green) environments side by side and switch traffic over instantly, with easy rollback.
+feature flag | feature toggle :: A switch that turns a feature on or off at runtime without redeploying.
+RPO :: Recovery point objective: how much recent data you can afford to lose in a disaster (for example 5 minutes).
+RTO :: Recovery time objective: how long you can afford to be down before service is restored.
+active-active | active-passive :: Multi-region setups: active-active serves traffic from every region at once; active-passive keeps a standby region ready.
+failover :: Automatically switching to a standby component when the primary fails.
+chaos engineering | chaos monkey :: Deliberately breaking things in a production-like system to prove it survives failures.
+autoscaling :: Adding or removing servers automatically as load changes.
+cold start :: The delay while a serverless function or fresh instance starts up before serving its first request.
+serverless | FaaS :: Run code without managing servers; the platform scales it and bills per execution.
+container | Docker :: A packaged app with its dependencies that runs the same anywhere; lighter than a virtual machine.
+Kubernetes | k8s :: Software that runs and manages many containers across machines: scheduling, scaling and healing.
+OAuth | OAuth 2.0 :: A standard for letting an app act on your behalf (like "Sign in with Google") without sharing your password.
+JWT :: JSON Web Token: a signed token that says who you are and what you may do, verifiable without a database lookup.
+RBAC :: Role-based access control: permissions are given to roles, and users are given roles.
+TLS | HTTPS, mTLS :: Encryption for data in transit. Mutual TLS makes both client and server prove who they are.
+DDoS :: Distributed denial of service: a flood of traffic from many machines meant to knock a service offline.
+CSRF :: Cross-site request forgery: tricking a logged-in user's browser into sending a request they did not intend.
+XSS :: Cross-site scripting: injecting malicious script into a page that other users view.
+SQL injection :: Sneaking SQL into an input so the database runs attacker-controlled commands. Prevented by parameterised queries.
+PII :: Personally identifiable information: data that identifies a person and needs extra protection.
+KMS :: Key management service: stores and controls encryption keys so apps never handle raw keys.
+embedding | embeddings :: A list of numbers that captures the meaning of text or an image, so similar things sit close together.
+vector database | ANN search, HNSW :: A database that finds the nearest embeddings quickly using approximate nearest-neighbour search.
+RAG :: Retrieval-augmented generation: fetch relevant documents first, then let an LLM answer using them.
+LLM :: Large language model: a neural network trained on huge amounts of text to predict and generate text.
+KV cache :: Stored attention keys and values for tokens already processed, so an LLM does not recompute them for every new token.
+continuous batching :: Serving several LLM requests together on one GPU and slotting new ones in as others finish, to raise throughput.
+cron :: A time-based job scheduler: "run this at 02:00 every day".
+back-of-the-envelope :: Quick rough maths to size a system (users x actions x bytes) before designing it.
+DAU | MAU :: Daily / monthly active users: the usual starting point of an estimate.
+Snowflake ID | snowflake :: A 64-bit ID made of timestamp + machine ID + sequence: unique and roughly time-ordered without coordination.
+UUID :: A 128-bit identifier that is unique without coordination, but long and (for v4) not time-ordered.

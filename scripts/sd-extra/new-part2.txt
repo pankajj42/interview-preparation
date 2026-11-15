@@ -1,0 +1,150 @@
+@new part-2 h3 added-search-and-indexing | 2.20 | Search and Indexing Fundamentals
+P: Databases answer "give me the row with this ID" very well, but "find documents that mention these words, best first" needs a different structure. ==A search engine keeps an inverted index: for every word, a list of the documents that contain it.== This section is the concept; the full design is in the case study "Design a Full-Text Search System".
+H: The building blocks
+- **Analysis**: text is split into tokens, lowercased, stripped of stop words and reduced to stems, so "Running", "runs" and "run" all match one term.
+- **Inverted index**: `term -> [doc 4, doc 17, doc 90 ...]`, often with the positions of the term, so phrases ("system design") can be matched.
+- **Ranking**: TF-IDF and BM25 score a document higher when it contains the query terms often and when those terms are rare in the whole collection.
+- **Segments**: the index is built from small immutable files that are merged in the background; new documents become searchable after a short refresh interval (near real time).
+H: Autocomplete and typo tolerance
+- Prefix suggestions use a **trie** or edge n-grams (indexing "sys", "syst", "syste"...) so a prefix is a direct lookup.
+- Typo tolerance uses edit distance (fuzzy matching) or phonetic and n-gram similarity; it is more expensive, so enable it selectively.
+H: Where search fits in a system
+- The search index is **derived data**: the database stays the source of truth, a change stream feeds the index, and the index can always be rebuilt.
+- Search is eventually consistent: a new record may take seconds to appear. Say that out loud in an interview.
+- Facets and filters (brand, price range) use column-style structures next to the index; geo search adds spatial indexes.
+NOTE: Interview tip: whenever a requirement says "search", "filter by text" or "autocomplete", name an inverted index (Elasticsearch, OpenSearch, Solr) instead of proposing a LIKE query on the main database.
+
+@new part-2 h3 added-real-time-communication-protocols | 2.21 | Real-Time Communication Protocols
+P: Plain HTTP is request and response: the client must ask. For chat, live scores, notifications and calls you need the server to be able to speak first. ==The choice is a ladder from simple and wasteful to powerful and complex.==
+TABLE: Technique | How it works | Good for | Watch out for
+ROW: Short polling | Client asks every few seconds | Rare updates, simplest thing | Wasted requests, slow to notice change
+ROW: Long polling | Server holds the request open until there is news | Fallback when WebSockets are blocked | Many open requests, reconnect churn
+ROW: Server-sent events (SSE) | One-way stream from server over HTTP | Live feeds, notifications, streaming LLM output | One direction only, limited connections per browser on old HTTP/1.1
+ROW: WebSocket | Persistent two-way connection | Chat, collaboration, games | Stateful connections: scaling, sticky routing, reconnect logic
+ROW: WebRTC | Peer-to-peer or SFU media over UDP | Audio, video, low-latency data | NAT traversal (STUN/TURN), signalling, complexity
+ROW: MQTT | Lightweight publish-subscribe | IoT devices, flaky networks | Needs a broker cluster
+H: Scaling persistent connections
+- A single server can hold hundreds of thousands of idle connections, but each connection pins state to that server. Keep a **session registry** (user to gateway) in a fast store so any service can find where to push.
+- Use **heartbeats** to detect dead connections, and let clients **reconnect with backoff and jitter** so a restart does not cause a thundering herd.
+- Make messages replayable: give each one a sequence number so a reconnecting client can ask for "everything after 4,812".
+H: Choosing in an interview
+- One-way and simple: SSE. Two-way and interactive: WebSocket. Media: WebRTC. Devices: MQTT. If infrastructure blocks all of them: long polling.
+NOTE: Interview tip: after choosing WebSockets, always mention how you route a message to the right server and what happens on reconnect; that is where the real design is.
+
+@new part-2 h3 added-multi-region-and-disaster-recovery | 2.22 | Multi-Region Architecture and Disaster Recovery
+P: Data centres fail: power, network, a bad deployment, a whole region going dark. Disaster recovery (DR) is deciding in advance how much you can lose and how long you can be down, then paying exactly for that. ==Two numbers drive everything: RPO (how much data you can lose) and RTO (how long you can be down).==
+H: Strategies, from cheapest to most resilient
+TABLE: Strategy | What it means | Typical RTO | Cost
+ROW: Backup and restore | Periodic backups copied to another region | Hours to days | Lowest
+ROW: Pilot light | Data replicated; minimal core running, scale up on disaster | Tens of minutes | Low
+ROW: Warm standby | A scaled-down copy always running | Minutes | Medium
+ROW: Active-active | Full capacity in several regions serving users at once | Seconds | Highest
+H: The hard part is the data
+- **Asynchronous replication** between regions is fast but can lose the last few seconds on failure (RPO above zero). **Synchronous replication** across regions has RPO zero but adds the round-trip time to every write.
+- In active-active, the same record may be written in two regions at once, so you need **conflict resolution** (last-writer-wins, CRDTs) or you **partition ownership** (each user has a home region).
+- A network split can leave two regions each thinking the other is dead. Avoid **split brain** with a quorum or a single authoritative control plane.
+H: Failing over
+- Traffic moves by **health-checked DNS** or anycast; keep DNS TTLs short and rehearse the process, because untested failover usually fails.
+- Run regular **game days** that switch a region off on purpose. Back up everything that cannot be rebuilt from code (databases, secrets, configuration) and test restores, not just backups.
+MERMAID:
+flowchart LR
+  U["Users"] --> D["Global DNS / anycast"]
+  D --> A["Region A (primary)"]
+  D --> B["Region B (standby or active)"]
+  A <-->|"replication"| B
+  A --> DA["Database A"]
+  B --> DB["Database B"]
+END
+NOTE: Interview tip: name RPO and RTO for the system you are designing and justify the strategy. A payment ledger needs RPO near zero; a view counter does not.
+
+@new part-2 h3 added-overload-protection-and-backpressure | 2.23 | Overload Protection: Backpressure, Load Shedding and Retry Budgets
+P: Systems rarely fail because they are slow once; they fail because slowness feeds on itself. A queue grows, latency rises, clients time out and retry, the retries add load, and the service never recovers. ==The skill is to make overload degrade gracefully instead of collapsing.==
+H: The tools, in the order a request meets them
+- **Timeouts everywhere**: never wait forever. A call without a timeout is a thread you will not get back.
+- **Bounded queues**: an unbounded queue just hides overload until memory runs out. When a queue is full, say no.
+- **Backpressure**: tell producers to slow down (reject, block or signal) so work is not accepted faster than it can be done.
+- **Load shedding**: when overloaded, drop the least important work first (analytics before checkout), and drop it early and cheaply, before spending resources on it.
+- **Rate limiting and quotas**: protect shared services from any single noisy client.
+- **Bulkheads**: separate pools per dependency or per tenant, so one slow dependency cannot use every thread.
+- **Circuit breakers**: after repeated failures, stop calling the dependency for a while and fail fast.
+H: Retries done safely
+- Retry only **idempotent** operations, with **exponential backoff and jitter** so clients do not retry in lockstep.
+- Use a **retry budget** (for example at most 10% extra traffic from retries) and retry at only one layer, because retries multiply across layers (3 x 3 x 3 = 27 calls).
+H: Cache stampede and thundering herd
+- When a hot key expires, thousands of requests rebuild it at once. Use **request coalescing** (one rebuild, others wait), **jittered TTLs**, or **refresh ahead** of expiry.
+H: Autoscaling is slow
+- New servers take minutes; spikes take seconds. Autoscaling complements shedding and queueing, it does not replace them. Keep headroom and scale on leading signals (queue length, request rate), not only CPU.
+NOTE: Interview tip: when you introduce a queue or a retry, say what happens when it is full or when retries pile up. That one sentence separates good answers from great ones.
+
+@new part-2 h3 added-data-modeling-and-schema-design | 2.24 | Data Modeling and Schema Design
+P: The right schema depends on how the data will be read. ==Start from the queries and access patterns, not from the nouns.== Interviewers often probe this right after you choose a database.
+H: Relational modelling
+- **Normalise** to avoid duplicated facts and update anomalies (a user's name lives in one place). Join to reassemble.
+- Add **indexes** for the columns you filter, join and sort by; every index speeds reads and slows writes and costs space.
+- **Denormalise on purpose** (store a copy of the author name on the post) when a join is too slow at scale, and accept the cost of keeping copies in sync.
+H: NoSQL modelling
+- In key-value and wide-column stores you design **one table per query**. The **partition key** decides which machine holds the data and must spread load evenly; the **sort key** orders items inside a partition, which gives cheap range queries.
+- Avoid **hot partitions**: a key such as "today's date" or a celebrity's ID sends everything to one node. Add a salt or bucket (`user#17`, `user#42`).
+- Joins do not exist, so you duplicate data and update it through events.
+H: Special shapes
+- **Time series**: partition by series and time bucket; write append-only; downsample old data.
+- **Hierarchies and graphs**: adjacency lists, materialised paths (`1/4/9`) or a graph database when traversals dominate.
+- **Large blobs**: keep the bytes in object storage and only a reference in the database.
+H: Evolving the schema
+- Add columns as nullable first, backfill, then enforce (the expand and contract pattern). Never rename or drop in one deploy while old code is still running.
+NOTE: Interview tip: for every table you draw, say its primary key, the main query it serves, and which index or partition key makes that query fast.
+
+@new part-2 h3 added-probabilistic-data-structures | 2.25 | Probabilistic Data Structures
+P: At very large scale, exact answers cost too much memory or time. These structures give approximate answers using tiny, fixed memory. ==You trade a small, known error for a huge saving.==
+TABLE: Structure | Answers | Error | Memory
+ROW: Bloom filter | "Is X in the set?" | No false negatives; a few false positives | About 10 bits per item for 1% false positives
+ROW: HyperLogLog | "How many distinct items?" | About 1% | Roughly 12 KB for billions of items
+ROW: Count-min sketch | "About how often did X appear?" | Over-estimates only | Small fixed table
+ROW: Top-K (heavy hitters) | "Which items are most frequent?" | Approximate | Sketch plus a small heap
+H: How each is used
+- **Bloom filter**: before an expensive lookup (a database or disk read) ask the filter. "Definitely not present" saves the lookup. Used by LSM databases, web crawlers (seen URLs) and caches (avoid caching one-hit wonders).
+- **HyperLogLog**: unique visitors per page per day without storing every ID. Different sketches can be merged, so daily counts combine into weekly.
+- **Count-min sketch**: a grid of counters updated by several hash functions; the estimate is the smallest of the counters for the item, so it never under-counts. Pair it with a small heap to track the top-K trending items in a stream.
+H: When it is acceptable
+- Counts shown to users (views, uniques, trending) are fine to approximate. Money, inventory and permissions are not.
+- Always state the error: "about 1% error, which is invisible on a dashboard".
+NOTE: Interview tip: reach for these when the interviewer says "billions" and "memory". Naming a Bloom filter for "avoid unnecessary lookups" is a classic win.
+
+@new part-2 h3 added-safe-deployments-and-release-engineering | 2.26 | Safe Deployments and Release Engineering
+P: Most outages are caused by changes, not by hardware. A good system makes changes small, reversible and observable. ==Separate deploying code from releasing a feature, so you can ship often and switch things off in seconds.==
+H: Packaging and running code
+- A **container** packages an app with its dependencies so it runs the same everywhere. **Kubernetes** schedules containers on machines, restarts failed ones, scales them and rolls out new versions.
+- Infrastructure is described in code (Terraform and similar) so environments are reproducible and reviewable.
+H: Rollout strategies
+TABLE: Strategy | How | Strength | Weakness
+ROW: Rolling | Replace instances a few at a time | Simple, no extra capacity | Mixed versions run together
+ROW: Blue-green | Full new environment, switch traffic at once | Instant rollback | Double the capacity during the switch
+ROW: Canary | Send 1% then 10% then 100% of traffic to the new version | Limits blast radius, real traffic | Needs good metrics and automation
+ROW: Feature flags | Code ships dark; flag turns it on per user or percentage | Decouples deploy from release; instant off switch | Flag debt, test combinations
+H: Changing the database safely
+- Use **expand and contract**: add the new column or table, write to both, backfill, switch reads, then remove the old one in a later release. Each step is compatible with the previous version of the code.
+H: Guardrails
+- Automated checks watch error rate and latency during a canary and **roll back automatically** when they degrade.
+- Keep every deploy **backward compatible** with the previous version for at least one release, because rollouts and rollbacks overlap.
+- Run **game days** and post-incident reviews so each failure improves the system.
+NOTE: Interview tip: when you say "we deploy a new version", add one sentence on how: canary with automatic rollback behind a feature flag.
+
+@new part-2 h3 added-capacity-planning-autoscaling-and-cost | 2.27 | Capacity Planning, Autoscaling and Cost
+P: Capacity planning answers "how many machines, how much storage, how much bandwidth?" ==Do it in three steps: estimate demand, add headroom, then prove it with a load test.== Interviewers also like to hear that cost is a design constraint, not an afterthought.
+H: From estimate to fleet
+- Start with users and actions to get average QPS, then multiply by a **peak factor** (2 to 5 times for daily peaks, much more for events).
+- Divide peak QPS by what one server can handle (measure it, do not guess) and add **headroom** (30 to 50%) plus redundancy so you survive losing a zone.
+- Storage = records per day x size x retention x replication factor. Bandwidth = QPS x response size.
+H: Autoscaling
+- Scale on **leading signals** (requests in flight, queue length) rather than only CPU. Set a minimum for baseline load and a maximum to cap runaway cost.
+- New capacity takes minutes to arrive, so pre-scale for known events (a sale at noon) and rely on queues and shedding for surprises.
+- Scale-in should be gradual to avoid flapping.
+H: Where the money goes, and how to reduce it
+TABLE: Lever | Effect
+ROW: Cache and CDN | Fewer origin requests, less compute and egress
+ROW: Compression and efficient formats | Less storage and bandwidth
+ROW: Storage tiering | Move cold data to cheaper classes (hot, warm, archive)
+ROW: Right-sizing and reserved or spot capacity | Pay less for steady or interruptible work
+ROW: Batching and async processing | Better utilisation of each machine
+ROW: Data retention limits | Stop paying for data nobody reads
+NOTE: Interview tip: finish a design with a one-line estimate of cost drivers ("storage dominates, so lifecycle rules matter most"). It shows production thinking.

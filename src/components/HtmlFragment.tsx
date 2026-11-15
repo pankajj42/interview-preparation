@@ -10,7 +10,7 @@ interface Slot { el: HTMLElement; key: string }
 
 /** Renders the original guide markup untouched. For System Design it adds, via portals, a done tick + revision star
  *  to every trackable heading, a remarks box at the end of every topic, and renders the Mermaid diagrams (re-rendered on theme change). */
-export default function HtmlFragment({ html, scope }: { html: string; scope: 'dp' | 'sd' }) {
+export default function HtmlFragment({ html, scope, flags = '' }: { html: string; scope: 'dp' | 'sd'; flags?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const { colorScheme } = useColorScheme();
@@ -48,7 +48,7 @@ export default function HtmlFragment({ html, scope }: { html: string; scope: 'dp
   }, [html, colorScheme, uid]);
 
   return (
-    <div className={`${scope}-scope`}>
+    <div className={`${scope}-scope ${flags}`.trim()}>
       <div ref={ref} className={scope === 'sd' ? 'content-wrap' : undefined} dangerouslySetInnerHTML={{ __html: html }} />
       {ctl.map((s) => createPortal(
         <span className="mr-2 inline-flex translate-y-[3px] items-center gap-1 align-baseline"><DoneCheck id={sdTid(s.key)} label="this topic" size={22} /><StarButton id={sdTid(s.key)} label="this topic" size={20} /></span>, s.el, s.key))}

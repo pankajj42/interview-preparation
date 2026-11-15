@@ -9,6 +9,7 @@ import '@fontsource/ibm-plex-mono/500.css';
 import './globals.css';
 import Providers from '@/components/Providers';
 import Shell from '@/components/Shell';
+import { AuthProvider } from '@/components/Auth';
 import { buildNav } from '@/lib/catalog';
 
 export const metadata: Metadata = {
@@ -24,7 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <InitColorSchemeScript attribute="data-mui-color-scheme" defaultMode="system" />
         <Providers>
-          <Shell nav={nav}>{children}</Shell>
+          <AuthProvider>
+            <Shell nav={nav}>{children}</Shell>
+          </AuthProvider>
         </Providers>
       </body>
     </html>

@@ -20,6 +20,7 @@ import FactCheckRounded from '@mui/icons-material/FactCheckRounded';
 import type { NavItem, NavSection, SectionId } from '@/lib/types';
 import { useCount, useCountPrefix } from '@/lib/store';
 import { ProgressRing } from './controls';
+import { AccountButton, AuthBanner } from './Auth';
 
 const norm = (p: string) => (p.length > 1 ? p.replace(/\/+$/, '') : p);
 export function sectionOf(pathname: string): SectionId | 'revision' | undefined {
@@ -117,7 +118,7 @@ function Brand() {
       <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-ink text-bg" aria-hidden>
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="3" width="14" height="2.6" rx="1.3" fill="currentColor" /><rect x="2" y="7.7" width="9.5" height="2.6" rx="1.3" fill="currentColor" opacity=".75" /><rect x="2" y="12.4" width="12" height="2.6" rx="1.3" fill="currentColor" opacity=".5" /></svg>
       </span>
-      <span className="whitespace-nowrap font-display text-[15px] font-semibold tracking-tight text-ink sm:text-[17px]">Interview preparation</span>
+      <span className="hidden whitespace-nowrap font-display text-[15px] font-semibold tracking-tight text-ink min-[430px]:inline sm:text-[17px]">Interview preparation</span>
     </Link>
   );
 }
@@ -138,6 +139,7 @@ export default function Shell({ nav, children }: { nav: NavSection[]; children: 
             <StarRounded sx={{ fontSize: 17 }} className="text-star" /><span className="tnum">{stars}</span><span className="hidden sm:inline text-muted">to revise</span>
           </Link>
           <ThemeToggle />
+          <AccountButton />
         </div>
       </header>
       <aside className="no-print fixed inset-y-0 left-0 z-20 hidden w-[var(--nav-w)] flex-col overflow-y-auto border-r border-line bg-surface lg:flex">
@@ -149,7 +151,7 @@ export default function Shell({ nav, children }: { nav: NavSection[]; children: 
         <NavTree nav={nav} onNavigate={() => setMobile(false)} />
       </Drawer>
       <main className="pt-14 lg:pl-[var(--nav-w)]">
-        <div className="mx-auto w-full max-w-[1180px] px-4 py-6 sm:px-6 lg:py-8">{children}</div>
+        <div className="mx-auto w-full max-w-[1180px] px-4 py-6 sm:px-6 lg:py-8"><AuthBanner />{children}</div>
       </main>
     </div>
   );

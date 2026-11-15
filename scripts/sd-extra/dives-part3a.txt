@@ -1,0 +1,271 @@
+@dive design-a-rate-limiter
+NUTSHELL
+A rate limiter answers one question for every request: "has this caller made too many requests lately?" If yes, reject with HTTP 429; if no, let it through. It protects servers from abusive clients and buggy retry loops, and it keeps usage fair.
+==The counting is easy. The hard part is counting correctly when many servers handle the same user at the same time.== So the counters must live in one shared place (usually Redis), not inside each server.
+ANALOGY
+A bouncer with a clicker: each guest (API key, user or IP) gets a fixed number of entries per hour, and the clicker is shared by every door.
+STEPS
+- Work out **who** the caller is (API key, user ID or IP) and **which rule** applies (for example 100 requests per minute).
+- Look up that caller's counter in Redis, keyed by caller + rule.
+- Run the algorithm. With a token bucket: refill the tokens earned since the last visit, then try to take one.
+- Token available: forward the request. No token: return `429 Too Many Requests` with a `Retry-After` header.
+- Do the read-refill-take in **one atomic step** (a Redis Lua script) so two gateways cannot both take the last token.
+IDEAS
+- Token bucket :: A bucket refills at a steady rate and each request spends a token. It allows short bursts but caps the long-run average, which is why most APIs pick it.
+- Fixed vs sliding window :: A fixed window ("100 per calendar minute") lets a user send 200 requests around the boundary. A sliding window counts over the last 60 seconds and removes that loophole.
+- Atomicity :: Read-then-write from two servers races. A single Lua script (or an atomic increment) makes the check-and-update indivisible.
+- Fail open or fail closed :: If Redis is down, most public APIs let traffic through (fail open) rather than block everyone; login and payment endpoints often fail closed.
+SAY
+- "I'll use a token bucket: it permits bursts but bounds the average rate."
+- "Counters live in Redis and the update is one atomic script, so every gateway sees the same truth."
+- "I'll return limit, remaining and reset headers so good clients can back off politely."
+AVOID
+- Keeping counters in each server's memory: every server sees only a slice of the traffic.
+- One global limit for everyone; real systems have per-user, per-IP and per-endpoint rules.
+- Forgetting to say what happens when the limiter's store is down.
+
+@dive design-consistent-hashing
+NUTSHELL
+Normal sharding uses `server = hash(key) % N`. The moment N changes (a server is added or dies), **almost every key maps to a different server**, so a cache suddenly loses nearly everything and the database is flooded.
+==Consistent hashing fixes this: when a server joins or leaves, only about 1/N of the keys move.== That is why caches, key-value stores and CDNs all use it.
+ANALOGY
+Guests sit around a round table and each takes the next free chair clockwise. If one chair is removed, only that chair's guest moves to the next one; everyone else stays put.
+STEPS
+- Imagine a circle of positions from 0 to 2^32. Hash each server name to a point on the circle.
+- Hash each key to a point on the same circle.
+- Walk clockwise from the key until you meet a server: that server owns the key.
+- A new server takes over only the keys between its predecessor and itself.
+- A removed server's keys slide to the next server clockwise.
+- Give every server **many virtual points** on the ring so the load spreads evenly.
+IDEAS
+- Virtual nodes :: With only one point per server, the slices are uneven and one server may get double the load. 100 to 200 points per server smooths this out, and a bigger machine can simply get more points.
+- Replication on the ring :: To keep R copies, store the key on the next R distinct servers clockwise.
+- Rebalancing cost :: Adding a server moves only its own slice, so you copy a small amount of data instead of reshuffling the cluster.
+- Hot keys :: Consistent hashing balances keys, not traffic. One extremely popular key still overloads its owner and needs replication or local caching.
+SAY
+- "Modulo hashing remaps nearly everything on resize; the ring remaps about 1/N."
+- "Virtual nodes give even load and let heterogeneous machines carry different weights."
+AVOID
+- Stopping at "a ring" without explaining virtual nodes.
+- Claiming it solves hot keys; it does not.
+
+@dive design-a-url-shortener-tinyurl
+NUTSHELL
+A URL shortener turns `https://example.com/very/long/path?x=1` into something like `sho.rt/aZ3k9` and redirects anyone who opens the short link. Reads (redirects) outnumber writes (creating links) by roughly 100 to 1, so ==design for fast reads first, and cache aggressively.==
+The one genuinely interesting decision is how to generate short codes that never collide.
+ANALOGY
+A coat-check ticket: you hand over the coat (long URL), get a small ticket number (short code), and later the ticket gets the coat back.
+STEPS
+- The client sends the long URL to `POST /shorten` (optionally with a custom alias).
+- The service creates a unique code, for example a counter or ID turned into **base62** (a-z, A-Z, 0-9).
+- It saves `code -> long URL` in a key-value store sharded by code.
+- On `GET /aZ3k9` it checks the cache (Redis) first; on a miss it reads the database and fills the cache.
+- It answers with a redirect (`301` or `302`) to the long URL.
+- Click analytics go to a queue asynchronously, so they never slow the redirect.
+IDEAS
+- Base62 length :: Seven base62 characters give 62^7, about 3.5 trillion codes: enough for decades at billions of links.
+- 301 vs 302 :: A 301 (permanent) lets browsers cache the redirect, which reduces load but hides later clicks from your analytics. A 302 keeps every click visible.
+- Collision-free generation :: Either hand out ID ranges from a counter service (no collisions, guessable codes) or generate random codes and check for a clash (unguessable, one extra lookup).
+- Expiry :: Links can expire; a background job (or TTL in the store) removes old ones so the keyspace is reused.
+SAY
+- "Hash-and-truncate is tempting but collides; I'd use a counter encoded in base62 or random codes with a uniqueness check."
+- "Redirect path: cache, then database. That path must be a few milliseconds."
+AVOID
+- Truncating an MD5 of the URL and ignoring collisions.
+- Forgetting abuse: malware links, custom-alias squatting, and rate limiting link creation.
+
+@dive design-a-unique-id-generator-distributed
+NUTSHELL
+When many machines create records at once, each record needs an ID that is **unique everywhere**, ideally sortable by creation time, without asking one central database for every number.
+==The famous answer is the Snowflake layout: a 64-bit number made of a timestamp, a machine ID and a per-millisecond sequence.== Two machines can never produce the same ID, and IDs roughly sort by time.
+ANALOGY
+Each cashier prints receipts as "date and time + cashier number + counter within that millisecond". Two cashiers can never print the same receipt number.
+STEPS
+- Take the current time in milliseconds (41 bits, good for about 69 years).
+- Add this machine's ID (10 bits, so up to 1,024 machines), assigned once at startup.
+- Add a sequence number (12 bits) that counts from 0 within the same millisecond: 4,096 IDs per millisecond per machine.
+- If the sequence runs out inside one millisecond, wait for the next millisecond.
+- If the clock moves backwards, refuse to issue IDs (or wait) until it catches up.
+IDEAS
+- Why not auto-increment :: One database sequence is a bottleneck and a single point of failure, and it breaks as soon as you shard.
+- UUID v4 :: Unique without coordination, but 128 bits and random, which fragments database indexes. Time-ordered IDs insert at the end of the index instead.
+- Clock skew :: The scheme trusts each machine's clock. NTP drift or a clock stepping backwards can create duplicates, so generators must detect it.
+- K-sortable :: IDs are "roughly" ordered by time across machines, good enough for feeds and pagination, not a strict global order.
+SAY
+- "I need uniqueness without coordination and rough time order, so Snowflake-style IDs."
+- "Machine IDs come from a small coordination service once, not per request."
+AVOID
+- Ignoring the clock going backwards.
+- Promising a strict global order; only per-machine order is exact.
+
+@dive design-a-key-value-store
+NUTSHELL
+A key-value store is a giant dictionary spread over many machines: `put(key, value)` and `get(key)`. The classic design (Dynamo, Cassandra) chooses **availability and scale over strict consistency**, so you can keep writing even when some machines are down.
+==It is built from a handful of well-known parts: consistent hashing to place data, replication to copy it, quorums to read and write safely, and gossip to know who is alive.==
+ANALOGY
+Three friends each keep a copy of your notebook. You write to at least two of them and later ask at least two. Because two plus two is more than three, at least one friend you ask has the newest page.
+STEPS
+- Hash the key onto a ring to find its **coordinator** node (consistent hashing with virtual nodes).
+- Copy the value to **N replicas** (the next N distinct nodes), typically N = 3.
+- A write succeeds when **W** replicas acknowledge; a read succeeds when **R** replicas answer.
+- If a replica is down, another node accepts its writes as a **hint** and hands them back later.
+- On reads, if replicas disagree, return the newest value and **repair** the stale copies.
+- Background anti-entropy (Merkle trees) compares replicas and fixes any remaining differences.
+IDEAS
+- Quorum rule :: If R + W > N, every read overlaps at least one replica holding the latest write. N=3, W=2, R=2 is the common balanced setting; W=1 makes writes fast but weaker.
+- Hinted handoff :: A temporary stand-in keeps writes meant for a dead node so you stay available, and delivers them when it returns.
+- Conflict resolution :: Two replicas may accept different writes during a partition. Last-write-wins is simple but can drop data; vector clocks detect true conflicts and let the application merge.
+- Gossip :: Nodes swap membership and health with random peers every second, so there is no central master to fail.
+SAY
+- "This is an AP system by default; I'll make consistency tunable per request through R and W."
+- "I'll use a write-ahead log plus an LSM tree on each node for fast durable writes."
+AVOID
+- Saying "it's consistent and available" without naming the partition trade-off.
+- Skipping how failed nodes recover (hinted handoff, read repair).
+
+@dive design-a-distributed-cache-build-redis
+NUTSHELL
+A distributed cache keeps hot data in memory so most requests never touch the database. You must decide **where each key lives, what happens when a node dies, and what to throw away when memory is full**.
+==The speed comes from simplicity: each shard runs one fast single-threaded event loop, so every command is atomic without locks.== Scale comes from adding shards.
+ANALOGY
+A shared whiteboard in the office: reading it is instant, but it is small. When it fills up you erase the least useful notes, and if it is wiped you re-fetch from the filing cabinet (the database).
+STEPS
+- Split the keyspace into fixed **hash slots** (Redis Cluster uses 16,384) and give each node a range of slots.
+- The client (or a proxy) hashes the key to a slot and sends the command to the node that owns it.
+- Each primary has one or more **replicas**; if the primary dies, a replica is promoted.
+- When memory is full, an **eviction policy** (LRU, LFU or TTL-based) removes entries.
+- Optional persistence: periodic snapshots (RDB) and/or an append-only log (AOF) so a restart is not a cold start.
+IDEAS
+- Hash slots :: A middle layer between keys and nodes. Moving a slot moves its keys, so rebalancing is a matter of reassigning slots.
+- Eviction :: LRU removes what was used longest ago; LFU removes what is used least often. Pick by access pattern, and always set TTLs.
+- Persistence trade-off :: Snapshots are compact but can lose the last minutes; the append-only log loses almost nothing but is bigger and slower. A pure cache may use neither.
+- Cache stampede :: When a hot key expires, thousands of requests rebuild it together. Use a lock or "single flight", jittered TTLs, or refresh slightly before expiry.
+SAY
+- "I'll use cache-aside: read the cache, on a miss read the database and populate."
+- "Invalidation is the hard part, so I'll prefer short TTLs plus delete-on-write."
+AVOID
+- Treating the cache as the source of truth.
+- Forgetting hot keys: one celebrity key can overload a single shard.
+
+@dive design-an-api-gateway
+NUTSHELL
+An API gateway is the **single front door** to many backend services. Clients call one address; the gateway authenticates them, limits their rate, routes the request to the right service and returns the result.
+==Putting these cross-cutting jobs in one place means every service does not have to re-implement them, but the gateway must never become a bottleneck or a single point of failure.==
+ANALOGY
+A hotel reception desk: guests check in once, get directed to the right room, and the desk turns away people who should not be inside.
+STEPS
+- The request arrives over TLS; the gateway terminates it.
+- It authenticates the caller (API key, JWT or OAuth token) and checks permissions.
+- It applies rate limits and quotas.
+- It looks up the route (path or host to service) and picks a healthy instance, with retries and timeouts.
+- It may transform the request or response, aggregate several calls, or serve from a cache.
+- It logs, records metrics and propagates a trace ID, then returns the response.
+IDEAS
+- Stateless gateways :: Keep no per-user state in the gateway, so you can run many copies behind a load balancer and scale out freely.
+- Service discovery :: Instances come and go, so the gateway asks a registry (or Kubernetes) for current healthy addresses instead of hard-coding them.
+- Gateway vs service mesh :: The gateway handles traffic entering the system (north-south); a mesh handles service-to-service traffic (east-west).
+- Timeouts and circuit breakers :: Without them, one slow backend ties up gateway threads and everything slows down.
+SAY
+- "The gateway handles auth, rate limiting, routing and observability; business logic stays in services."
+- "It is stateless and horizontally scaled, with config pushed from a control plane."
+AVOID
+- Putting business rules in the gateway.
+- Forgetting that the gateway is on the critical path of every request.
+
+@dive design-a-web-crawler
+NUTSHELL
+A web crawler starts from some seed URLs, downloads pages, extracts the links, and repeats, building a copy of the web for a search engine. The challenge is doing this **politely, without repeating work, and at huge scale**.
+==The core structure is a "URL frontier" (a smart queue) plus a "seen" check so you never download the same URL twice.==
+ANALOGY
+Exploring a huge city with a to-visit list: every street you walk adds new streets to the list, and you keep a map of streets already visited so you never walk one twice.
+STEPS
+- Seed URLs go into the **URL frontier**.
+- Fetcher workers take URLs from the frontier, resolve DNS and download the page.
+- The parser extracts text and links; the content is stored (and fingerprinted to detect duplicates).
+- New links are normalised and checked against a **seen set** (a Bloom filter or key-value store).
+- Unseen URLs return to the frontier, prioritised and scheduled.
+- Respect `robots.txt` and wait between requests to the same host.
+IDEAS
+- Politeness :: Never hammer one site. The frontier has per-host queues and a delay per host, so many hosts are fetched in parallel but each is hit slowly.
+- Priority :: Not all pages matter equally. Prioritise by importance (links in, freshness, site quality) so the best pages are crawled and refreshed first.
+- Duplicate detection :: Normalise URLs, then compare content fingerprints (hashes or SimHash) to catch the same content under different URLs.
+- Spider traps :: Infinite calendars or session URLs can trap a crawler. Depth limits and URL-pattern caps protect you.
+SAY
+- "I'll partition the frontier by host so politeness is easy and each host is owned by one worker."
+- "A Bloom filter is a cheap first check for seen URLs; false positives just mean skipping a rare page."
+AVOID
+- One big queue with no per-host politeness.
+- Forgetting robots.txt, DNS caching and spider traps.
+
+@dive design-a-leaderboard
+NUTSHELL
+A leaderboard shows the top players and, importantly, **a given player's rank**. Sorting millions of scores on every request is far too slow, so you keep scores in a structure that is always sorted.
+==Redis sorted sets do exactly that: add or update a score and get a rank in O(log N).== At very large scale you shard by score range or time period and merge results.
+ANALOGY
+A scoreboard at a stadium that re-orders itself instantly whenever a score changes, so "who is in the top 10" and "what is my rank" are both quick glances.
+STEPS
+- A game server sends a score update event.
+- The leaderboard service updates the player's entry in a sorted set (`ZADD`).
+- "Top 10" reads the highest entries (`ZREVRANGE`); "my rank" is `ZREVRANK`.
+- Separate sets per period (daily, weekly, all-time) are rolled over by time.
+- Durable scores are also saved in a database; the sorted set can be rebuilt from it.
+IDEAS
+- Sorted set :: A structure that keeps members ordered by score (a skip list plus hash map), giving fast insert, rank and range queries.
+- Sharding :: When one set is too big, split by score ranges or by player buckets; the global top-K is the merge of each shard's top-K.
+- Approximate rank :: For millions of players, an exact rank for a low-scoring player rarely matters; bucketed counts give a good estimate cheaply.
+- Ties :: Break ties deterministically (earliest to reach the score) so the order is stable.
+SAY
+- "Writes update a sorted set; top-K and rank are logarithmic reads."
+- "I'd keep a durable copy so a cache loss can be rebuilt."
+AVOID
+- Running `ORDER BY score DESC` on a huge table per request.
+- Ignoring how to rebuild after a Redis failure.
+
+@dive design-twitters-timeline-x
+NUTSHELL
+A timeline shows the recent posts of everyone you follow. The key decision is **when to do the work**: when someone posts (push) or when someone reads (pull).
+==For most users, precompute the timeline at write time (fan-out on write). For celebrities with millions of followers, skip that and merge their posts in at read time.== This hybrid is the classic answer.
+ANALOGY
+A newspaper delivered to each subscriber: printing a copy per subscriber at publish time makes reading instant, but a star with a million subscribers makes printing too costly, so those few papers are fetched fresh when the reader opens the app.
+STEPS
+- A user posts; the tweet is saved and an event is published.
+- A fan-out service looks up the author's followers.
+- For normal authors it pushes the tweet ID into each follower's cached timeline (a Redis list).
+- For celebrity authors it does nothing at write time.
+- When you open your timeline, the service reads your precomputed list and merges in recent posts from the celebrities you follow.
+- Posts are hydrated (user info, counts) from caches before returning.
+IDEAS
+- Fan-out on write :: Fast reads, expensive writes. Good when followers are few.
+- Fan-out on read :: Cheap writes, slow reads (many lookups). Good for celebrities.
+- Hybrid :: Push for ordinary users, pull for celebrities, merged at read time; it keeps both costs bounded.
+- Storing IDs, not tweets :: Timelines hold only tweet IDs; content is fetched from a tweet cache, which saves memory and keeps edits and deletes consistent.
+SAY
+- "Reads dominate writes by orders of magnitude, so I precompute timelines."
+- "Celebrity accounts break fan-out on write, so I treat them differently."
+AVOID
+- Choosing only push or only pull and not discussing the celebrity case.
+- Storing full tweet bodies in every follower's timeline.
+
+@dive design-instagram
+NUTSHELL
+Instagram is a photo-sharing feed: upload a photo, followers see it. Two flows matter: **uploading and serving media**, and **building the feed**. Photos are big, so they go to object storage and are served through a CDN, while the database holds only metadata.
+==Keep the heavy bytes out of your application servers: upload straight to object storage and let the CDN serve them.==
+ANALOGY
+A photo lab: the negatives (original images) are kept in a warehouse, small prints in different sizes are made once, and the neighbourhood shops (CDN) hold copies of the popular prints.
+STEPS
+- The app asks the API for a pre-signed upload URL and uploads the photo directly to object storage.
+- An event triggers a worker that creates several sizes (thumbnail, medium, large) and strips sensitive metadata.
+- A metadata row (owner, caption, object keys, timestamps) is written to the database.
+- The post is fanned out to followers' feeds, as in the timeline design.
+- Feed requests return post IDs, then the app loads image URLs from the CDN.
+IDEAS
+- Pre-signed URLs :: A temporary signed link that lets the client write straight to storage, so large uploads never pass through your servers.
+- Image variants :: Generating a few sizes once saves bandwidth for every viewer and speeds up the feed.
+- CDN :: Popular images are cached near users, so most reads never reach your origin; the long tail still hits the origin.
+- Metadata vs media split :: A relational or wide-column store handles small structured data, object storage handles the large blobs, and each scales on its own.
+SAY
+- "Uploads go direct to storage with a pre-signed URL; processing is asynchronous."
+- "The feed reuses the hybrid fan-out; images are always served from the CDN."
+AVOID
+- Streaming image bytes through the application servers.
+- Storing images in the database.

@@ -1,0 +1,26 @@
+/* Additions to the System Design guide: deep dives, new sections, highlights and key-term tooltips */
+.sd-scope .sd-extra { margin: 26px 0 12px; padding: 16px 22px 10px; background: var(--blueprint-tint); border: 1px solid var(--line); border-left: 4px solid var(--blueprint); border-radius: 6px; }
+.sd-scope .sd-extra-title { font-weight: 700; font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--blueprint); margin-bottom: 8px; }
+.sd-scope .sd-extra h5 { margin: 16px 0 6px; font-size: 14px; font-weight: 700; color: var(--blueprint-strong); letter-spacing: 0; }
+.sd-scope .sd-extra p { margin: 8px 0; }
+.sd-scope .sd-extra .sd-analogy { background: var(--surface); border-left: 3px solid var(--signal); padding: 9px 13px; border-radius: 4px; }
+.sd-scope .sd-extra dl { margin: 6px 0 4px; }
+.sd-scope .sd-extra dt { font-weight: 700; color: var(--ink); margin-top: 10px; }
+.sd-scope .sd-extra dd { margin: 2px 0 0; color: var(--ink-soft); }
+.sd-scope .sd-extra ul, .sd-scope .sd-extra ol { margin: 6px 0; padding-left: 22px; }
+.sd-scope .sd-extra li { margin: 4px 0; }
+.sd-scope .sd-extra ul.sd-say li::marker { color: var(--good); }
+.sd-scope .sd-extra ul.sd-avoid li::marker { color: var(--signal); }
+.sd-scope .sd-added::after { content: 'NEW'; margin-left: 10px; padding: 2px 7px; border-radius: 999px; background: var(--signal-tint); color: var(--signal); font-size: 10.5px; font-weight: 700; letter-spacing: .08em; vertical-align: middle; }
+.sd-scope mark.hl { background: color-mix(in srgb, var(--signal) 26%, transparent); color: inherit; padding: 0 .1em; border-radius: 3px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.sd-scope abbr.gl { text-decoration: underline dotted var(--ink-faint); text-underline-offset: 3px; cursor: help; position: relative; outline: none; }
+.sd-scope abbr.gl:hover::after, .sd-scope abbr.gl:focus::after {
+  content: attr(data-def); position: absolute; left: 0; top: calc(100% + 6px); z-index: 30; width: max-content; max-width: min(320px, 78vw);
+  padding: 8px 11px; border-radius: 8px; background: var(--ink); color: var(--paper); font: 400 13px/1.45 var(--font-sans); text-decoration: none;
+  letter-spacing: 0; text-transform: none; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); white-space: normal; text-align: left;
+}
+/* view toggles */
+.sd-scope.no-gl abbr.gl { text-decoration: none; cursor: inherit; }
+.sd-scope.no-gl abbr.gl::after { display: none !important; }
+.sd-scope.no-hl mark.hl { background: none; padding: 0; }
+.sd-scope.no-extra .sd-extra { display: none; }

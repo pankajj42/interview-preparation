@@ -2,12 +2,13 @@
 <h3 id="01-whats-actually-being-graded"><span class="sd-slot" data-key="01-whats-actually-being-graded"></span><span class="sec-num">0.1</span>What's actually being graded</h3>
 <p>A system design interview is not a test of whether you can produce a correct architecture — there rarely is a single correct one. GeeksforGeeks' own framework material is blunt about this: <em>"There is no one-size-fits-all solution in system design."</em> Interviewers are grading four things, roughly in this order of importance:</p>
 <ol>
-<li><strong>Structured thinking under ambiguity.</strong> Do you ask clarifying questions before designing, or do you start drawing boxes immediately? Rushing to an answer without clarifying scope is explicitly called out as a red flag in interviewer training material.</li>
+<li><strong>Structured thinking under ambiguity.</strong> Do you ask clarifying questions before designing, or do you start drawing boxes immediately? <mark class="hl">Rushing to an answer without clarifying scope is explicitly called out as a red flag in interviewer training material.</mark></li>
 <li><strong>Communication.</strong> Can you narrate trade-offs out loud, in real time, the way you'd explain a decision to a teammate? Staff-level bars especially reward this over textbook completeness.</li>
 <li><strong>Depth on demand.</strong> When the interviewer says "go deeper on the database," can you go three layers deeper than your initial box-and-arrow diagram?</li>
-<li><strong>Judgment about trade-offs.</strong> Every component you add costs something (latency, cost, operational complexity). Naming the cost is worth more than naming the component.</li>
+<li><strong>Judgment about trade-offs.</strong> Every component you add costs something (<abbr class="gl" tabindex="0" data-def="How long one request takes from send to response. Usually quoted as percentiles (p50, p99); lower is better.">latency</abbr>, cost, operational complexity). Naming the cost is worth more than naming the component.</li>
 </ol>
 <p>You are expected to <strong>lead</strong> the interview — it's your design, your whiteboard, your pacing. The interviewer will stay quiet unless you ask.</p>
+<div class="sd-extra" data-for="01-whats-actually-being-graded"><div class="sd-extra-title">In simple words</div><p>A system design interview is not a quiz with one right answer. <mark class="hl">You are graded on how you think: how you clarify a vague problem, structure a solution, weigh trade-offs and communicate clearly.</mark> A calm, organised candidate with a decent design beats a brilliant but chaotic one.</p><h5>Key ideas, explained</h5><dl><dt>Problem navigation</dt><dd>Do you ask the right questions and narrow an open problem to something you can solve in 45 minutes?</dd><dt>Technical depth</dt><dd>Can you go one level deeper where it matters (storage choice, consistency, failure handling) and explain why?</dd><dt>Trade-off reasoning</dt><dd>Every choice has a cost. Saying what you gave up is worth more than the choice itself.</dd><dt>Communication</dt><dd>Think aloud, draw as you go, and check in with the interviewer.</dd></dl><h5>Say this in the interview</h5><ul class="sd-say"><li>"Let me confirm the requirements before I design anything."</li></ul><h5>Common mistakes</h5><ul class="sd-avoid"><li>Silently drawing boxes, or jumping straight to a favourite technology.</li></ul></div>
 <div class="sd-remarks-slot" data-key="01-whats-actually-being-graded"></div>
 <h3 id="02-the-end-to-end-framework"><span class="sd-slot" data-key="02-the-end-to-end-framework"></span><span class="sec-num">0.2</span>The end-to-end framework</h3>
 <p>Every major course converges on some variant of the same four movements. Grokking's original version calls it a step-by-step framework; Educative's newer edition names it <strong>RESHADED</strong> (Requirements → Estimation → Storage/data model → High-level design → Detailed design → Evaluate trade-offs → Distill); Hello Interview calls its version the <strong>Delivery Framework</strong>. They are the same shape:</p>
@@ -27,7 +28,7 @@
 </tr>
 <tr>
 <td><strong>2. Estimation</strong></td>
-<td>Back-of-envelope: scale, QPS, storage, bandwidth</td>
+<td>Back-of-envelope: scale, <abbr class="gl" tabindex="0" data-def="Queries (requests) per second: the standard way to size a system.">QPS</abbr>, storage, bandwidth</td>
 <td>folded into step 1 or 3</td>
 </tr>
 <tr>
@@ -64,16 +65,17 @@ flowchart LR
 <strong>You:</strong> Should the feed be searchable? Real-time, or is some staleness acceptable?</p>
 </blockquote>
 <p>Notice the candidate never guesses. Each answer narrows scope before any design happens.</p>
+<div class="sd-extra" data-for="02-the-end-to-end-framework"><div class="sd-extra-title">In simple words</div><p>A framework keeps you from freezing. <mark class="hl">Use the same order every time: requirements, estimation, API and data model, high-level design, deep dives on the hardest parts, then bottlenecks and trade-offs.</mark></p><h5>How it works, step by step</h5><ol><li>Clarify requirements and scope, and write them down.</li><li>Estimate scale (users, QPS, storage) to decide what matters.</li><li>Define the main API calls and the core data model.</li><li>Draw a simple high-level design that satisfies the requirements.</li><li>Deep-dive the one or two hardest components the interviewer cares about.</li><li>Discuss failures, bottlenecks, monitoring and alternatives.</li></ol><h5>Say this in the interview</h5><ul class="sd-say"><li>"I will start simple, then scale the parts that the numbers say will break."</li></ul><h5>Common mistakes</h5><ul class="sd-avoid"><li>Over-engineering the first diagram, or never reaching the deep dive.</li></ul></div>
 <div class="sd-remarks-slot" data-key="02-the-end-to-end-framework"></div>
 <h3 id="03-functional-vs-non-functional-requirements"><span class="sd-slot" data-key="03-functional-vs-non-functional-requirements"></span><span class="sec-num">0.3</span>Functional vs. non-functional requirements</h3>
 <ul>
 <li><strong>Functional requirements</strong> — what the system <em>does</em>: user-facing features and actions ("users can post a tweet," "users can search by hashtag").</li>
-<li><strong>Non-functional requirements</strong> — how well it does it: scale, latency, availability, consistency, security, cost. These usually decide your architecture more than the functional list does — a feed that must be "real-time for 500M users" implies a completely different design than one that tolerates a 10-second delay for 50,000 users.</li>
+<li><strong>Non-functional requirements</strong> — how well it does it: scale, <abbr class="gl" tabindex="0" data-def="How long one request takes from send to response. Usually quoted as percentiles (p50, p99); lower is better.">latency</abbr>, <abbr class="gl" tabindex="0" data-def="The share of time the system answers correctly. &quot;Three nines&quot; (99.9%) allows about 8.8 hours of downtime a year.">availability</abbr>, consistency, security, cost. <mark class="hl">These usually decide your architecture more than the functional list does — a feed that must be "real-time for 500M users" implies a completely different design than one that tolerates a 10-second delay for 50,000 users.</mark></li>
 <li><strong>Constraints</strong> — budget, team size, existing tech stack, timeline, legal/compliance limits.</li>
 </ul>
 <p><strong>Generic questions that unlock 90% of interviews</strong> (compiled from course frameworks):</p>
 <ul>
-<li>What's the scale — DAU/MAU, and how much data per user?</li>
+<li>What's the scale — <abbr class="gl" tabindex="0" data-def="Daily / monthly active users: the usual starting point of an estimate.">DAU</abbr>/<abbr class="gl" tabindex="0" data-def="Daily / monthly active users: the usual starting point of an estimate.">MAU</abbr>, and how much data per user?</li>
 <li>Is this global, regional, or single-market?</li>
 <li>What's the expected growth rate over 1–3 years?</li>
 <li>Availability vs. consistency — which one bends when the network partitions?</li>
@@ -82,6 +84,7 @@ flowchart LR
 <li>Any compliance constraints — GDPR, HIPAA, PCI-DSS, data residency?</li>
 <li>Read-heavy or write-heavy? What's the read:write ratio?</li>
 </ul>
+<div class="sd-extra" data-for="03-functional-vs-non-functional-requirements"><div class="sd-extra-title">In simple words</div><p>Functional requirements say <strong>what</strong> the system does; non-functional requirements say <strong>how well</strong>. <mark class="hl">The non-functional ones (scale, latency, availability, consistency, durability) are what actually shape the architecture.</mark></p><h5>Key ideas, explained</h5><dl><dt>Functional</dt><dd>Features and behaviours, for example "users can post and follow".</dd><dt>Non-functional</dt><dd>Qualities such as "feeds load in under 200 ms for 10 million daily users, available 99.9% of the time".</dd><dt>Out of scope</dt><dd>Explicitly list what you will not build; it protects your time.</dd><dt>Consistency needs</dt><dd>Ask which data must be strongly consistent (payments) and which may be eventual (view counts).</dd></dl><h5>Say this in the interview</h5><ul class="sd-say"><li>"I'll assume read-heavy traffic and eventual consistency for the feed, but strong consistency for payments."</li></ul><h5>Common mistakes</h5><ul class="sd-avoid"><li>Listing only features and never asking about scale or latency.</li></ul></div>
 <div class="sd-remarks-slot" data-key="03-functional-vs-non-functional-requirements"></div>
 <h3 id="04-back-of-the-envelope-estimation"><span class="sd-slot" data-key="04-back-of-the-envelope-estimation"></span><span class="sec-num">0.4</span>Back-of-the-envelope estimation</h3>
 <p>A back-of-envelope calculation is a rough, defensible estimate — not a precise one. The goal is to pick the right <em>class</em> of solution (single Postgres instance vs. a sharded cluster; a queue vs. a raw HTTP call), not to produce a number you'd bet money on. Talk through it out loud; a silent calculation is wasted signal.</p>
@@ -126,7 +129,7 @@ flowchart LR
 </table>
 <p><strong>Worked example — IoT health-monitoring fleet</strong> (from course material, reproduced because the mechanics generalize to almost any "design a system that ingests X" problem):</p>
 <blockquote>
-<p><em>Scenario:</em> 1 million active cars, each emitting a telemetry event every 10 seconds. Dashboards need 1-minute granularity. Target read latency &lt; 50 ms.</p>
+<p><em>Scenario:</em> 1 million active cars, each emitting a telemetry event every 10 seconds. Dashboards need 1-minute granularity. Target read <abbr class="gl" tabindex="0" data-def="How long one request takes from send to response. Usually quoted as percentiles (p50, p99); lower is better.">latency</abbr> &lt; 50 ms.</p>
 <ol>
 <li><strong>Throughput:</strong> 1,000,000 cars ÷ 10 s = <strong>100,000 events/sec</strong> ingested.</li>
 <li><strong>Record size:</strong> id (4B) + attribute (8B) + value (4B) + timestamp (8B) ≈ <strong>25 bytes/event</strong>.</li>
@@ -140,10 +143,11 @@ flowchart LR
 <p><strong>Rules of thumb for interpreting your own numbers:</strong></p>
 <ul>
 <li>L1 cache &lt; L2 cache &lt; RAM &lt; SSD &lt; spinning disk &lt; network, in both speed and typical cost per GB — cheapest last.</li>
-<li>A single well-tuned relational database can usually handle low tens of thousands of QPS before you need to shard.</li>
-<li>If your QPS estimate is in the hundreds, you probably don't need to shard, queue, or introduce Kafka — resist the urge to over-architect a small problem.</li>
+<li>A single well-tuned relational database can usually handle low tens of thousands of <abbr class="gl" tabindex="0" data-def="Queries (requests) per second: the standard way to size a system.">QPS</abbr> before you need to <abbr class="gl" tabindex="0" data-def="Splitting data across machines by a key, so each machine holds only part of it.">shard</abbr>.</li>
+<li><mark class="hl">If your QPS estimate is in the hundreds, you probably don't need to shard, queue, or introduce Kafka — resist the urge to over-architect a small problem.</mark></li>
 <li>Round aggressively. "About 100K QPS" beats a false-precision "94,608 QPS" — the interview rewards the right order of magnitude, not decimal accuracy.</li>
 </ul>
+<div class="sd-extra" data-for="04-back-of-the-envelope-estimation"><div class="sd-extra-title">In simple words</div><p>Estimation turns a vague scale into numbers that justify your design. <mark class="hl">You are not looking for a precise answer, only the order of magnitude: is it 100 QPS or 100,000 QPS?</mark></p><h5>How it works, step by step</h5><ol><li>Start from users: daily active users x actions per user per day.</li><li>Divide by 86,400 seconds for average QPS; multiply by 2 to 5 for peak.</li><li>Multiply by object size for bandwidth and by retention for storage.</li><li>Check what one machine can handle to estimate how many you need.</li></ol><h5>Key ideas, explained</h5><dl><dt>Round aggressively</dt><dd>Use 100,000 seconds a day and powers of ten; precision is not the point.</dd><dt>Reads vs writes</dt><dd>The ratio decides caching, replicas and sharding choices.</dd><dt>Storage growth</dt><dd>Per day x 365 x years x replication factor.</dd></dl><h5>Say this in the interview</h5><ul class="sd-say"><li>"About 5,000 QPS on average and 20,000 at peak, so one database will not do; we need caching and sharding."</li></ul><h5>Common mistakes</h5><ul class="sd-avoid"><li>Spending ten minutes on arithmetic, or skipping the step entirely.</li></ul></div>
 <div class="sd-remarks-slot" data-key="04-back-of-the-envelope-estimation"></div>
 <h3 id="05-latency-numbers-every-candidate-should-know"><span class="sd-slot" data-key="05-latency-numbers-every-candidate-should-know"></span><span class="sec-num">0.5</span>Latency numbers every candidate should know</h3>
 <p>Originally compiled by Jeff Dean (Google) and popularized by Peter Norvig — still the reference every course cites, because the <em>relative</em> gaps (not the absolute numbers) are what matter for reasoning about where to put a cache.</p>
@@ -223,7 +227,7 @@ flowchart LR
 </thead>
 <tbody>
 <tr>
-<td>Frontier LLM, time to first token (short prompt, no cache)</td>
+<td>Frontier <abbr class="gl" tabindex="0" data-def="Large language model: a neural network trained on huge amounts of text to predict and generate text.">LLM</abbr>, time to first token (short prompt, no cache)</td>
 <td>~1 s</td>
 </tr>
 <tr>
@@ -240,33 +244,34 @@ flowchart LR
 </tr>
 </tbody>
 </table>
-<p><strong>What to do with this table:</strong> memory is ~100,000× faster than a network round trip to another continent, and roughly 200,000× faster than a spinning-disk seek. That's the entire justification for caching, CDNs, and read replicas in one sentence — every layer you add between a user and a disk in another region is there to avoid the bottom three rows of this table.</p>
+<p><strong>What to do with this table:</strong> memory is ~100,000× faster than a network round trip to another continent, and roughly 200,000× faster than a spinning-disk seek. That's the entire justification for caching, CDNs, and read <abbr class="gl" tabindex="0" data-def="Keeping copies of data on several machines for safety and for extra read capacity.">replicas</abbr> in one sentence — every layer you add between a user and a disk in another region is there to avoid the bottom three rows of this table.</p>
+<div class="sd-extra" data-for="05-latency-numbers-every-candidate-should-know"><div class="sd-extra-title">In simple words</div><p>Rough latency numbers tell you which designs are even possible. <mark class="hl">Memory is nanoseconds, SSD is microseconds, a network hop in one data centre is half a millisecond, and a cross-continent round trip is about a hundred milliseconds.</mark></p><h5>Key ideas, explained</h5><dl><dt>Order of magnitude</dt><dd>Memory about 100 ns, SSD about 100 microseconds, disk seek about 10 ms, same-datacentre round trip about 0.5 ms, cross-region 50 to 150 ms.</dd><dt>Consequences</dt><dd>Calling five services in sequence across regions can blow a 200 ms budget, so cache, parallelise or move work close to the user.</dd><dt>Memory vs disk</dt><dd>Keeping hot data in memory is 100 to 1,000 times faster than reading from disk.</dd></dl><h5>Say this in the interview</h5><ul class="sd-say"><li>"That is a cross-region call, so it costs roughly 100 ms; I will keep it off the request path."</li></ul><h5>Common mistakes</h5><ul class="sd-avoid"><li>Treating a network call as free.</li></ul></div>
 <div class="sd-remarks-slot" data-key="05-latency-numbers-every-candidate-should-know"></div>
 <h3 id="06-the-excellence-checklist-what-separates-hire-from-no-hire"><span class="sd-slot" data-key="06-the-excellence-checklist-what-separates-hire-from-no-hire"></span><span class="sec-num">0.6</span>The excellence checklist — what separates hire from no-hire</h3>
 <p>Nine habits, cross-checked across multiple interviewer-side training materials, that consistently distinguish a strong signal from a merely-passing one:</p>
 <ol>
-<li><strong>State assumptions out loud</strong> and revisit them when the scale changes — "Assuming 10K QPS; if it were 1M, I'd shard here instead."</li>
+<li><strong>State assumptions out loud</strong> and revisit them when the scale changes — "Assuming 10K <abbr class="gl" tabindex="0" data-def="Queries (requests) per second: the standard way to size a system.">QPS</abbr>; if it were 1M, I'd <abbr class="gl" tabindex="0" data-def="Splitting data across machines by a key, so each machine holds only part of it.">shard</abbr> here instead."</li>
 <li><strong>Quantify before and after every design choice</strong> — a decision without a number attached is an opinion, not an engineering judgment.</li>
 <li><strong>Name 2–3 alternatives for every major decision</strong>, then pick one and justify the pick — not just "I'll use Kafka," but "queue vs. stream vs. direct call, and here's why streaming wins here."</li>
 <li><strong>Drive the conversation</strong> — "The hardest part here is X — shall we go deep on that?" rather than waiting to be steered.</li>
-<li><strong>Discuss failure modes without being asked:</strong> node death, network partition, hot keys, thundering herd, poison messages, clock skew, replication lag.</li>
+<li><strong>Discuss failure modes without being asked:</strong> node death, network partition, hot keys, <abbr class="gl" tabindex="0" data-def="Many requests miss the same expired key at once and all hit the database. Fix it with locks, jittered TTLs or early refresh.">thundering herd</abbr>, poison messages, clock skew, <abbr class="gl" tabindex="0" data-def="Keeping copies of data on several machines for safety and for extra read capacity.">replication</abbr> lag.</li>
 <li><strong>Know the hot-key problem cold</strong> — it recurs in every cache and KV-store answer (Section 2.5).</li>
 <li><strong>Know the thundering-herd fixes cold</strong> — jittered TTLs, staggered refresh, mutex/single-flight, stale-while-revalidate (Section 2.5).</li>
-<li><strong>End with monitoring and SLOs for your own design</strong> — "p99 &lt; 200ms, 99.95% availability, dashboards on error rate and queue depth."</li>
+<li><strong>End with monitoring and SLOs for your own design</strong> — "<abbr class="gl" tabindex="0" data-def="The latency that 99% of requests beat. The slowest 1% are worse, and that tail is what unlucky users feel.">p99</abbr> &lt; 200ms, 99.95% <abbr class="gl" tabindex="0" data-def="The share of time the system answers correctly. &quot;Three nines&quot; (99.9%) allows about 8.8 hours of downtime a year.">availability</abbr>, dashboards on error rate and queue depth."</li>
 <li><strong>If stuck, don't freeze:</strong> re-anchor on requirements, draw boxes-and-arrows, verbalize trade-offs. Partial structure beats silence.</li>
 </ol>
 <p><strong>A longer list of anti-patterns worth actively avoiding</strong>, several of which are subtle enough that candidates repeat them without noticing:</p>
 <ul>
-<li>Starting with technology names before requirements exist ("I'll use Kubernetes and Kafka!" said before anyone asked what the system does).</li>
+<li>Starting with technology names before requirements exist ("I'll use <abbr class="gl" tabindex="0" data-def="Software that runs and manages many containers across machines: scheduling, scaling and healing.">Kubernetes</abbr> and Kafka!" said before anyone asked what the system does).</li>
 <li>Designing before clarifying scope, or silently assuming scope instead of stating it.</li>
 <li>Producing a design with no numbers anywhere in it.</li>
-<li>Claiming "exactly-once" delivery as a casual, unqualified fact — say <em>at-least-once plus idempotent processing</em> instead (Section 2.7).</li>
-<li>Saying the CAP theorem means a system "picks two of three" permanently — it describes behavior <strong>during a partition</strong> specifically; outside a partition, the real everyday trade-off is latency vs. consistency (Section 2.7's PACELC discussion).</li>
-<li>Treating a cache as a database with slightly different syntax, without qualifying its weaker durability guarantees.</li>
-<li>Reaching for microservices, Kafka, or sharding reflexively, without a requirement that actually demands them — see Section 0.4's rule of thumb about not over-architecting a small problem.</li>
-<li>Treating "eventual consistency" as if it meant "data loss" — it means <em>bounded, temporary staleness</em>, not lost writes.</li>
-<li>Assuming retries are always safe by default, rather than checking idempotency first (Section 2.7).</li>
+<li><mark class="hl">Claiming "<abbr class="gl" tabindex="0" data-def="Each message takes effect once. In practice this is at-least-once delivery plus idempotent processing.">exactly-once</abbr>" delivery as a casual, unqualified fact — say </mark><em><abbr class="gl" tabindex="0" data-def="Delivery guarantee: a message is never lost but may arrive more than once, so consumers must be idempotent.">at-least-once</abbr> plus <abbr class="gl" tabindex="0" data-def="Doing the same request twice has the same effect as doing it once. This makes retries safe, e.g. a payment is never charged twice.">idempotent</abbr> processing</em> instead (Section 2.7).</li>
+<li>Saying the <abbr class="gl" tabindex="0" data-def="When the network splits, you must choose: stay consistent (refuse some requests) or stay available (maybe return stale data).">CAP theorem</abbr> means a system "picks two of three" permanently — it describes behavior <strong>during a partition</strong> specifically; outside a partition, the real everyday trade-off is <abbr class="gl" tabindex="0" data-def="How long one request takes from send to response. Usually quoted as percentiles (p50, p99); lower is better.">latency</abbr> vs. consistency (Section 2.7's <abbr class="gl" tabindex="0" data-def="Extends CAP: if Partitioned choose Availability or Consistency; Else (normal operation) choose Latency or Consistency.">PACELC</abbr> discussion).</li>
+<li><mark class="hl">Treating a cache as a database with slightly different syntax, without qualifying its weaker durability guarantees.</mark></li>
+<li>Reaching for <abbr class="gl" tabindex="0" data-def="Splitting an app into small, independently deployable services that each own their data.">microservices</abbr>, Kafka, or <abbr class="gl" tabindex="0" data-def="Splitting data across machines by a key, so each machine holds only part of it.">sharding</abbr> reflexively, without a requirement that actually demands them — see Section 0.4's rule of thumb about not over-architecting a small problem.</li>
+<li>Treating "<abbr class="gl" tabindex="0" data-def="Replicas may disagree for a short while but converge to the same value once writes stop.">eventual consistency</abbr>" as if it meant "data loss" — it means <em>bounded, temporary staleness</em>, not lost writes.</li>
+<li><mark class="hl">Assuming retries are always safe by default, rather than checking <abbr class="gl" tabindex="0" data-def="Doing the same request twice has the same effect as doing it once. This makes retries safe, e.g. a payment is never charged twice.">idempotency</abbr> first (Section 2.7).</mark></li>
 <li>Explaining every possible feature instead of the two or three that are actually hard.</li>
 </ul>
-<hr/>
+<hr/><div class="sd-extra" data-for="06-the-excellence-checklist-what-separates-hire-from-no-hire"><div class="sd-extra-title">In simple words</div><p>At the end of a design, a short checklist separates a good answer from an excellent one. <mark class="hl">Strong candidates volunteer failure modes, scale limits, monitoring and trade-offs before they are asked.</mark></p><h5>Key ideas, explained</h5><dl><dt>Failure handling</dt><dd>What happens when a service, database or region goes down?</dd><dt>Bottlenecks</dt><dd>Where will it break first at 10 times the load, and how would you fix it?</dd><dt>Observability</dt><dd>Which metrics, logs and alerts tell you it is healthy?</dd><dt>Alternatives</dt><dd>Name one other approach and say why you did not choose it.</dd></dl><h5>Say this in the interview</h5><ul class="sd-say"><li>"If I had more time, the next risks I would address are these two."</li></ul><h5>Common mistakes</h5><ul class="sd-avoid"><li>Ending with "that is my design" and no discussion of limits.</li></ul></div>
 <div class="sd-remarks-slot" data-key="06-the-excellence-checklist-what-separates-hire-from-no-hire"></div>

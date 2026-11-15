@@ -1,0 +1,106 @@
+@dive 01-whats-actually-being-graded
+NUTSHELL
+A system design interview is not a quiz with one right answer. ==You are graded on how you think: how you clarify a vague problem, structure a solution, weigh trade-offs and communicate clearly.== A calm, organised candidate with a decent design beats a brilliant but chaotic one.
+IDEAS
+- Problem navigation :: Do you ask the right questions and narrow an open problem to something you can solve in 45 minutes?
+- Technical depth :: Can you go one level deeper where it matters (storage choice, consistency, failure handling) and explain why?
+- Trade-off reasoning :: Every choice has a cost. Saying what you gave up is worth more than the choice itself.
+- Communication :: Think aloud, draw as you go, and check in with the interviewer.
+SAY
+- "Let me confirm the requirements before I design anything."
+AVOID
+- Silently drawing boxes, or jumping straight to a favourite technology.
+
+@dive 02-the-end-to-end-framework
+NUTSHELL
+A framework keeps you from freezing. ==Use the same order every time: requirements, estimation, API and data model, high-level design, deep dives on the hardest parts, then bottlenecks and trade-offs.==
+STEPS
+- Clarify requirements and scope, and write them down.
+- Estimate scale (users, QPS, storage) to decide what matters.
+- Define the main API calls and the core data model.
+- Draw a simple high-level design that satisfies the requirements.
+- Deep-dive the one or two hardest components the interviewer cares about.
+- Discuss failures, bottlenecks, monitoring and alternatives.
+SAY
+- "I will start simple, then scale the parts that the numbers say will break."
+AVOID
+- Over-engineering the first diagram, or never reaching the deep dive.
+
+@dive 03-functional-vs-non-functional-requirements
+NUTSHELL
+Functional requirements say **what** the system does; non-functional requirements say **how well**. ==The non-functional ones (scale, latency, availability, consistency, durability) are what actually shape the architecture.==
+IDEAS
+- Functional :: Features and behaviours, for example "users can post and follow".
+- Non-functional :: Qualities such as "feeds load in under 200 ms for 10 million daily users, available 99.9% of the time".
+- Out of scope :: Explicitly list what you will not build; it protects your time.
+- Consistency needs :: Ask which data must be strongly consistent (payments) and which may be eventual (view counts).
+SAY
+- "I'll assume read-heavy traffic and eventual consistency for the feed, but strong consistency for payments."
+AVOID
+- Listing only features and never asking about scale or latency.
+
+@dive 04-back-of-the-envelope-estimation
+NUTSHELL
+Estimation turns a vague scale into numbers that justify your design. ==You are not looking for a precise answer, only the order of magnitude: is it 100 QPS or 100,000 QPS?==
+STEPS
+- Start from users: daily active users x actions per user per day.
+- Divide by 86,400 seconds for average QPS; multiply by 2 to 5 for peak.
+- Multiply by object size for bandwidth and by retention for storage.
+- Check what one machine can handle to estimate how many you need.
+IDEAS
+- Round aggressively :: Use 100,000 seconds a day and powers of ten; precision is not the point.
+- Reads vs writes :: The ratio decides caching, replicas and sharding choices.
+- Storage growth :: Per day x 365 x years x replication factor.
+SAY
+- "About 5,000 QPS on average and 20,000 at peak, so one database will not do; we need caching and sharding."
+AVOID
+- Spending ten minutes on arithmetic, or skipping the step entirely.
+
+@dive 05-latency-numbers-every-candidate-should-know
+NUTSHELL
+Rough latency numbers tell you which designs are even possible. ==Memory is nanoseconds, SSD is microseconds, a network hop in one data centre is half a millisecond, and a cross-continent round trip is about a hundred milliseconds.==
+IDEAS
+- Order of magnitude :: Memory about 100 ns, SSD about 100 microseconds, disk seek about 10 ms, same-datacentre round trip about 0.5 ms, cross-region 50 to 150 ms.
+- Consequences :: Calling five services in sequence across regions can blow a 200 ms budget, so cache, parallelise or move work close to the user.
+- Memory vs disk :: Keeping hot data in memory is 100 to 1,000 times faster than reading from disk.
+SAY
+- "That is a cross-region call, so it costs roughly 100 ms; I will keep it off the request path."
+AVOID
+- Treating a network call as free.
+
+@dive 06-the-excellence-checklist-what-separates-hire-from-no-hire
+NUTSHELL
+At the end of a design, a short checklist separates a good answer from an excellent one. ==Strong candidates volunteer failure modes, scale limits, monitoring and trade-offs before they are asked.==
+IDEAS
+- Failure handling :: What happens when a service, database or region goes down?
+- Bottlenecks :: Where will it break first at 10 times the load, and how would you fix it?
+- Observability :: Which metrics, logs and alerts tell you it is healthy?
+- Alternatives :: Name one other approach and say why you did not choose it.
+SAY
+- "If I had more time, the next risks I would address are these two."
+AVOID
+- Ending with "that is my design" and no discussion of limits.
+
+@dive 51-an-8-week-plan
+NUTSHELL
+Consistent practice beats cramming. ==Spend the early weeks on fundamentals and estimation, the middle weeks on classic case studies, and the final weeks on timed mock interviews.==
+SAY
+- "Each week I redo one case study from memory and then compare it with the guide."
+AVOID
+- Only reading designs; you must also draw and explain them aloud.
+
+@dive 52-where-this-guides-structure-came-from
+NUTSHELL
+This guide's structure is a synthesis of published interview frameworks, engineering blogs and standard distributed-systems texts. ==Use the sources to go deeper than any single guide can.==
+SAY
+- "I will read the original paper or engineering post for the three systems I find hardest."
+AVOID
+- Treating any one guide, including this one, as the whole truth.
+
+@dive 53-practicing-beyond-this-guide
+NUTSHELL
+Reading is only half of learning system design. ==Practise out loud with another person, record yourself, and design small real systems to discover what the diagrams hide.==
+SAY
+- "I schedule a mock interview every week and ask for feedback on structure and trade-offs."
+AVOID
+- Practising only silently on paper.

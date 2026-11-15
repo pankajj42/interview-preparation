@@ -1,0 +1,266 @@
+@dive design-airbnb
+NUTSHELL
+Airbnb connects guests with hosts. Three systems matter: **search** (find listings that match place, dates and filters), **availability and booking** (never sell the same night twice), and **payments**. ==The booking step is the one that must be strongly consistent; search can be eventually consistent.==
+ANALOGY
+A hotel reservations desk with a wall calendar per room: browsing the brochure can be a little out of date, but writing a name on a calendar night must never double-book it.
+STEPS
+- Hosts create listings; they are indexed in a search engine with location, price, amenities and ratings.
+- A guest searches by place and dates; the search layer uses a geo index plus filters and returns ranked results.
+- Opening a listing reads the live availability calendar.
+- Booking runs a transaction: check the nights are free, place a short hold, take payment, then confirm.
+- Calendars, search indexes and notifications update asynchronously after the booking.
+IDEAS
+- Search vs booking consistency :: Search results may show a listing that was just booked; the booking transaction is the single place that decides, and it fails safely if the nights are gone.
+- Holds :: A reservation hold (for example 10 minutes) stops two guests paying for the same nights at once, and expires automatically if payment fails.
+- Geo search :: Cells (geohash, S2) or a search engine's geo queries filter by map area first, then rank.
+- Double-booking prevention :: A unique constraint on (listing, night) or a row lock makes a second booking of the same night impossible.
+SAY
+- "Search is read-heavy and eventually consistent; booking is a small, strongly consistent transactional core."
+- "I'd use a unique (listing, date) constraint as the final safety net."
+AVOID
+- Putting search and booking on the same consistency path.
+- Skipping payment failure and hold expiry.
+
+@dive design-google-maps-nearby-places
+NUTSHELL
+This is really two problems: **"find places near me"** and **"give me the best route"**. Nearby search uses a spatial index; routing treats roads as a graph and finds shortest paths, using precomputed shortcuts because the full graph is huge.
+==The world is cut into map tiles (images or vectors) that are cached on a CDN, so the map itself is just static files.==
+ANALOGY
+Nearby places is like asking "which shops are on my street and the next one?". Routing is like planning a trip using highways first and only side streets at the start and end.
+STEPS
+- Places are stored with latitude and longitude and indexed by geohash, quadtree or S2 cell.
+- A "nearby" query computes the user's cell and its neighbours, loads the places there, then filters by distance and category.
+- For routing, the road network is a graph (intersections are nodes, roads are weighted edges).
+- A search algorithm (Dijkstra, A*) finds the cheapest path, helped by precomputed hierarchies such as contraction hierarchies.
+- Live traffic updates edge weights, so ETAs change as conditions change.
+- Map tiles are pre-rendered at several zoom levels and served from a CDN.
+IDEAS
+- Spatial index :: Turns two-dimensional "near" into cheap lookups by cell, so you do not compare against every place.
+- Hierarchical routing :: Long trips use a coarse "highway" graph and only refine near the start and end, which makes continental routes fast.
+- Tiles :: The map is a grid of small images or vector chunks per zoom level, cached heavily because they rarely change.
+- Traffic :: Phones anonymously report speeds; aggregated per road segment, they adjust travel times in near real time.
+SAY
+- "Nearby is a spatial index problem; routing is a graph problem with precomputed hierarchies."
+- "Static map data goes to the CDN; only dynamic traffic needs fresh computation."
+AVOID
+- Running plain Dijkstra over the whole world graph per request.
+- Scanning all places with a distance formula.
+
+@dive design-a-payment-system
+NUTSHELL
+A payment system moves money correctly: the customer is charged **exactly once**, the merchant is credited, and every cent is accounted for. ==Correctness beats speed here, so use idempotency keys, a double-entry ledger and reconciliation against the bank.==
+ANALOGY
+A bank teller who writes every transaction twice (once as money out of one account and once as money into another) and checks at day end that the books balance.
+STEPS
+- The client sends a payment request with an **idempotency key** that identifies this purchase attempt.
+- The service creates a payment record in a state machine (created, authorised, captured, failed, refunded).
+- It calls the payment provider or card network; the response updates the state.
+- Money movements are written to a **double-entry ledger** (a debit and a credit that always sum to zero).
+- Webhooks from the provider confirm final status; retries are safe because of idempotency.
+- Nightly **reconciliation** compares your ledger with the provider's settlement files and flags mismatches.
+IDEAS
+- Idempotency key :: If the client or network retries, the server recognises the same key and returns the first result instead of charging again.
+- Double-entry ledger :: Every transfer is two rows that balance. Nothing is ever edited; corrections are new entries, so history is auditable.
+- State machine :: A payment can only move along allowed transitions, which blocks nonsense like refunding an uncaptured payment.
+- Reconciliation :: Because the outside world can disagree with you (timeouts, delayed settlements), you compare records regularly and fix differences deliberately.
+SAY
+- "Retries are inevitable, so every write is idempotent; money is stored as integers in minor units, never floats."
+- "Strong consistency inside the ledger; eventual consistency and reconciliation at the edges."
+AVOID
+- Using floating-point numbers for money.
+- Assuming the provider call either clearly succeeds or clearly fails; timeouts leave it unknown.
+
+@dive design-a-stock-exchange
+NUTSHELL
+An exchange matches buy orders with sell orders fairly and extremely fast. ==The core is an order book per symbol and a single-threaded matching engine that applies price-time priority==: best price first, and for equal prices the earliest order first.
+Latency is measured in microseconds, and fairness and determinism matter more than raw throughput.
+ANALOGY
+Two queues at a market stall: buyers sorted by the highest price they will pay, sellers by the lowest price they will accept. When the best buyer's price meets the best seller's, a trade happens.
+STEPS
+- Orders arrive through gateways that validate and sequence them.
+- A **sequencer** gives every order a global sequence number so everyone agrees on the order of events.
+- The matching engine for that symbol compares the new order with the opposite side of the book and generates trades.
+- Unmatched quantity rests in the book at its price level.
+- Trades and book updates are published to market-data feeds; the event log is replicated for recovery.
+- Risk checks, clearing and settlement happen around (and after) the match.
+IDEAS
+- Order book :: Two sorted structures per symbol (bids high to low, asks low to high), each price level holding a queue of orders by arrival time.
+- Price-time priority :: Fairness rule: the best price wins; ties go to whoever arrived first.
+- Single-threaded matching :: One thread per symbol removes locks and makes results deterministic, so the same input always produces the same output.
+- Event sourcing :: Persist the stream of inputs; any machine can rebuild the order book by replaying it, which gives easy failover.
+SAY
+- "Shard by symbol; each symbol has one matching engine, replicated by replaying the same ordered log."
+- "Determinism and a total order of events are the key properties."
+AVOID
+- Multi-threaded matching on one book with locks.
+- Ignoring failover: a hot standby replays the same log.
+
+@dive design-an-e-commerce-platform-amazon-style
+NUTSHELL
+An e-commerce platform has a catalogue, search, a cart, checkout, inventory, orders and payments. Most pages are read-heavy and cacheable, while checkout is write-heavy and must be correct. ==The hardest part is inventory: do not oversell, even when thousands of people buy the last item at once.==
+ANALOGY
+A department store: the shop window (catalogue and search) can be copied and shown anywhere, but the stockroom count must be exact at the till.
+STEPS
+- Product pages come from a catalogue service backed by cache and a CDN; search uses a dedicated search index.
+- The cart is stored per user (in a fast store) and survives sessions.
+- Checkout validates the cart, **reserves inventory**, calls the payment system, then creates the order.
+- Order events (placed, paid, shipped) flow through a queue to warehouse, shipping, email and analytics services.
+- If payment fails, the reservation is released; a saga coordinates compensating steps.
+- Flash sales use queues and rate limits to protect inventory and payment services.
+IDEAS
+- Reserve then confirm :: Stock is held while payment happens, so the count is never negative and failed payments return the stock.
+- Atomic inventory update :: A conditional update (`stock = stock - 1 WHERE stock > 0`) or a single-writer queue per product prevents overselling.
+- Saga :: A multi-step order split into local steps, each with an undo, instead of one giant distributed transaction.
+- Read/write split :: Product browsing scales with caches and replicas; the order path uses stricter storage.
+SAY
+- "Browsing is cached and eventually consistent; inventory and payment are strongly consistent and idempotent."
+- "For hot items I'd queue purchase attempts so the database sees ordered, bounded writes."
+AVOID
+- Decrementing stock without a guard condition.
+- Doing the whole checkout in one distributed transaction across services.
+
+@dive design-a-ticket-booking-system-bookmyshowticketmaster-style
+NUTSHELL
+When a popular show opens, thousands of people try to book the **same seats at the same moment**. The system must let each seat be sold to exactly one person, hold it briefly while the buyer pays, and stay up under a stampede.
+==Treat a seat like a lock with an expiry: reserve it first, pay within a few minutes, otherwise release it.==
+ANALOGY
+A cinema box office with a seat map: when you point at seat 12 the clerk puts a "reserved" card on it for five minutes; if you do not pay, the card is removed and someone else can have it.
+STEPS
+- The client loads the seat map (mostly static) and live seat status.
+- Choosing seats calls `reserve`: an atomic update marks the seats "held" with an expiry, only if they are free.
+- The user has a few minutes to pay; a timer or TTL releases the hold if they do not.
+- On payment success the seats become "booked" and the order is confirmed.
+- A virtual **waiting room** meters how many users enter the booking flow during huge on-sales.
+- Seat status updates are pushed to other viewers so they see seats disappear.
+IDEAS
+- Hold with TTL :: A temporary reservation that expires on its own, so abandoned carts never lock seats forever.
+- Atomic check-and-set :: The database or Redis operation "set to held if currently free" is the one place that prevents double booking.
+- Waiting room :: A queue in front of the system that admits users at a rate the backend can handle, rather than letting everyone in and crashing.
+- Overselling vs underselling :: Prefer a safe system that occasionally shows "unavailable" over one that sells a seat twice.
+SAY
+- "Seat state changes only through an atomic conditional update with an expiry."
+- "A waiting room plus rate limiting protects the booking service during on-sales."
+AVOID
+- Check-then-write in two steps; that is a race.
+- Holding seats forever without a timeout.
+
+@dive design-an-object-store-aws-s3-style
+NUTSHELL
+An object store keeps huge numbers of files (objects) cheaply and **extremely durably** (eleven nines), accessed over HTTP by bucket and key. ==It separates metadata (where is this object?) from data (the bytes), and protects the bytes with replication or erasure coding.==
+ANALOGY
+A giant warehouse with an index book: the index tells you which shelves hold your box, and each box is stored in several buildings so a fire in one does not lose it.
+STEPS
+- A client uploads an object via an API gateway; large files are uploaded in parts.
+- The metadata service records the bucket, key, size, checksum and version.
+- The data is split into chunks and written to several storage nodes (replicas or erasure-coded fragments) in different failure domains.
+- The write completes only after enough copies are durably stored.
+- Reads look up metadata, fetch chunks from healthy nodes and verify checksums.
+- Background scrubbing re-reads data to detect and repair silent corruption.
+IDEAS
+- Metadata vs data :: Metadata is small and needs fast lookups, usually a sharded database; the bytes live on cheap disks. They scale separately.
+- Erasure coding :: Splitting data into data plus parity fragments (for example 10 plus 4) survives several failures with far less overhead than three full copies.
+- Failure domains :: Spread copies across disks, racks and zones so one failure cannot remove them all.
+- Versioning and immutability :: Objects are replaced, not edited in place, which simplifies consistency and enables version history.
+SAY
+- "Durability comes from redundancy across failure domains plus continuous checksums and repair."
+- "Multipart upload makes large uploads resumable and parallel."
+AVOID
+- Treating it like a file system with in-place edits.
+- Ignoring silent data corruption (bit rot).
+
+@dive design-a-distributed-message-queue-build-kafka
+NUTSHELL
+Kafka is a **distributed, append-only log**. Producers append messages to a topic; consumers read them in order and remember their position (offset). ==Throughput comes from sequential disk writes, batching and splitting each topic into partitions that spread across brokers.==
+ANALOGY
+A long ledger book per topic: writers only add lines at the end; each reader keeps a bookmark and reads forward at their own pace, and old pages are kept for a while so readers can re-read.
+STEPS
+- A topic is divided into **partitions**; messages with the same key go to the same partition, preserving order for that key.
+- Each partition has a leader broker and follower replicas that copy the log.
+- A producer appends to the leader; with `acks=all` it waits for the in-sync replicas.
+- Consumers in a **consumer group** split the partitions between them; each tracks its offset.
+- Messages are retained for a time or size limit, not deleted when read.
+- If a leader fails, an in-sync follower is elected as the new leader.
+IDEAS
+- Partition :: The unit of parallelism and ordering. Order is guaranteed only within a partition, so choose the key carefully.
+- Offset :: A consumer's position in the log. Storing it lets a consumer resume, or replay history by moving it back.
+- In-sync replicas (ISR) :: The replicas that are caught up. A write is safe once all of them have it, so a leader failure loses nothing.
+- Why it is fast :: Sequential appends, batching, zero-copy transfer and the operating system's page cache beat random-access queues.
+SAY
+- "Per-key ordering via the partition key; scale consumers by adding partitions and group members."
+- "Delivery is at-least-once by default; idempotent consumers or transactions give exactly-once effects."
+AVOID
+- Expecting global ordering across partitions.
+- Choosing a key that creates a hot partition.
+
+@dive design-a-serverless-function-platform-aws-lambda-style
+NUTSHELL
+A serverless platform runs a developer's function **on demand**, scales it from zero to thousands of copies, and bills per execution. ==The hard problem is starting code fast and isolating customers securely on shared machines.==
+ANALOGY
+A taxi service for code: you do not own a car; when a request comes, a car (a sandbox) arrives, does the trip, and leaves. If cars were already waiting nearby, the trip starts faster.
+STEPS
+- A request (HTTP, queue event, timer) reaches the front end, which authenticates and routes it.
+- The scheduler looks for a **warm** sandbox already holding the function; if none exists it starts a cold one.
+- A cold start downloads the code, boots a lightweight VM or container (microVM), and initialises the runtime.
+- The function runs with strict CPU, memory and time limits; the result is returned.
+- The sandbox is kept warm for a while to serve the next call, then reclaimed.
+- Usage is metered for billing; logs and metrics are collected.
+IDEAS
+- Cold vs warm start :: Starting fresh costs hundreds of milliseconds; reusing a warm sandbox costs almost nothing. Platforms keep pools of pre-created sandboxes.
+- MicroVMs :: Very small virtual machines (such as Firecracker) boot in a fraction of a second and give strong isolation between tenants.
+- Concurrency limits :: Each function has a cap so one noisy function cannot consume the whole fleet.
+- Placement :: Put a function's sandboxes on hosts that already have its code cached, to shorten starts.
+SAY
+- "Isolation is the security boundary: I'd use microVMs rather than plain containers for untrusted code."
+- "I'd minimise cold starts with pre-warmed pools and snapshot-based restores."
+AVOID
+- Ignoring multi-tenant security.
+- Forgetting concurrency limits and timeouts.
+
+@dive design-a-distributed-scheduler-cron-at-scale
+NUTSHELL
+A distributed scheduler runs jobs at the right time ("every day at 02:00", "in 10 minutes") and **never runs the same job twice and never silently drops one**, even when machines crash.
+==Separate "finding what is due" from "running it", and make sure only one worker claims each job.==
+ANALOGY
+A diary shared by a team of secretaries: each morning they look at today's entries, one picks up each task by putting her initials on it, and if she disappears her initials expire so someone else can take it.
+STEPS
+- Jobs are stored with their next run time in a database (indexed by time).
+- Scheduler nodes periodically query for jobs due in the next few seconds and push them onto a work queue.
+- A worker claims a job with a **lease** (an atomic "claim if unclaimed" with an expiry).
+- The worker runs the job and records success or failure; failed jobs are retried with backoff.
+- For recurring jobs, the next run time is computed and stored when a run completes (or starts).
+- If a worker dies, its lease expires and another worker picks the job up.
+IDEAS
+- Lease :: A claim that expires. It prevents two workers from running the same job, yet lets the job be rescued if the owner crashes.
+- At-least-once execution :: Because a worker could crash after doing the work but before recording it, jobs may run twice, so jobs should be idempotent.
+- Time-bucketed storage :: Partition jobs by time slot so each scheduler scans a small, recent range instead of everything.
+- Leader election :: Only one scheduler (or one per shard) enqueues due jobs, so work is not duplicated at the source.
+SAY
+- "Scheduling and execution are decoupled; due jobs go on a queue and workers claim them with leases."
+- "I'd design jobs to be idempotent because exactly-once is not achievable end to end."
+AVOID
+- Every node polling the same table and running everything it finds.
+- Ignoring missed runs after downtime (catch-up policy).
+
+@dive design-a-metrics-monitoring-platform-datadog-style
+NUTSHELL
+A monitoring platform collects numbers over time (CPU, request rate, latency), stores them efficiently, lets you graph them and **alerts you when something is wrong**. ==Metrics are time series: huge volumes of tiny points that are written constantly and read as ranges.==
+ANALOGY
+A hospital patient monitor: sensors send readings every few seconds, the monitor draws the history as a line, and an alarm sounds if a reading crosses a safe limit.
+STEPS
+- Agents on each host collect metrics and send batches (push) or are scraped by collectors (pull).
+- Data flows through a queue into a **time-series database** partitioned by metric and time.
+- Older data is **downsampled** (for example per-minute averages) to save space.
+- Queries read a time range and aggregate (sum, average, percentile) for dashboards.
+- An alert engine evaluates rules continuously, with thresholds and durations, and notifies on-call people.
+- Alerts are deduplicated and routed to avoid flooding the team.
+IDEAS
+- Time-series storage :: Points are written in time order and compressed heavily (storing deltas), which makes billions of points affordable.
+- Downsampling and retention :: Keep raw data briefly and rolled-up data for long periods, because nobody needs second-level detail from last year.
+- Cardinality :: The number of distinct label combinations (for example per user ID) can explode storage; control it carefully.
+- Alert design :: Alert on symptoms users feel (error rate, latency) with a time window, not on every blip, to avoid noise.
+SAY
+- "Write path is append-only and batched; read path is range queries with pre-aggregated rollups."
+- "I'd watch label cardinality since it is the main way these systems fall over."
+AVOID
+- Storing every raw point forever.
+- Alerting on instantaneous values that flap.

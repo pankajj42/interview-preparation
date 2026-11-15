@@ -16,7 +16,7 @@ export interface DpRow { key: string; name: string; tags: string; diff: string; 
 export interface DpGroup { n: number; label: string; title: string; count: string; rows: DpRow[] }
 export interface DpPattern { n: number; label: string; eyebrow: string; title: string; search: string; layoutHtml: string; detailsHtml: string }
 
-export interface SdTopic { key: string; level: number; num: string; title: string }
+export interface SdTopic { key: string; level: number; num: string; title: string; added?: boolean }
 export interface SdPart { slug: string; id: string; title: string; topics: SdTopic[] }
 
 export interface CtciTab { slug: string; title: string; group: 'priority' | 'difficulty' | 'topic'; rows: [number, string, string, string][] }

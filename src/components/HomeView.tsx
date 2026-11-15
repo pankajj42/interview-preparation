@@ -3,11 +3,11 @@ import { useMemo } from 'react';
 import Link from 'next/link';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import StarRounded from '@mui/icons-material/StarRounded';
-import StorageRounded from '@mui/icons-material/StorageRounded';
 import ctciIndex from '../../data/ctci-index.json';
 import type { NavSection } from '@/lib/types';
 import { ctciPid } from '@/lib/catalog-ids';
-import { STORAGE_LIMIT_BYTES, useAll, useCountPrefix, useDoneMap, useStorageBytes } from '@/lib/store';
+import { useAll, useCountPrefix, useDoneMap } from '@/lib/store';
+import { SyncIcon, SyncLabel } from './Auth';
 import { ProgressRing, Strip } from './controls';
 
 const CTCI_SEGMENTS = (ctciIndex as { slugs: string[]; tabs: { idx: number[] }[] }).tabs.map((t) => t.idx.map((i) => ctciPid((ctciIndex as { slugs: string[] }).slugs[i])));
@@ -49,7 +49,6 @@ function SectionCard({ s, segments }: { s: NavSection; segments: string[][] }) {
 export default function HomeView({ nav, segments }: { nav: NavSection[]; segments: { striver: string[][]; dp: string[][]; sd: string[][] } }) {
   const all = useAll();
   const doneN = Object.keys(all.done).length, starN = Object.keys(all.star).length, remN = Object.keys(all.remark).length;
-  const bytes = useStorageBytes();
   return (
     <div>
       <section className="mb-8">
@@ -60,7 +59,7 @@ export default function HomeView({ nav, segments }: { nav: NavSection[]; segment
           <span className="card tnum px-3 py-1.5"><b>{doneN.toLocaleString('en')}</b> done</span>
           <Link href="/revision/" className="card focus-ring inline-flex items-center gap-1 px-3 py-1.5 no-underline hover:border-accent"><StarRounded sx={{ fontSize: 16 }} className="text-star" /><b className="tnum">{starN}</b> to revise</Link>
           <span className="card tnum px-3 py-1.5"><b>{remN}</b> remarks</span>
-          <Link href="/settings/" className="card focus-ring inline-flex items-center gap-1 px-3 py-1.5 no-underline hover:border-accent"><StorageRounded sx={{ fontSize: 16 }} className="text-muted" /><span className="tnum">{(bytes / 1024).toFixed(1)} KB / {(STORAGE_LIMIT_BYTES / 1048576).toFixed(0)} MB used</span></Link>
+          <Link href="/settings/" className="card focus-ring inline-flex items-center gap-1.5 px-3 py-1.5 no-underline hover:border-accent"><SyncIcon size={16} /><span className="text-muted"><SyncLabel /></span></Link>
         </div>
       </section>
       <div className="grid gap-4 md:grid-cols-2">

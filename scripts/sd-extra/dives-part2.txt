@@ -1,0 +1,246 @@
+@dive 21-architecture-styles
+NUTSHELL
+An architecture style is the big-picture way you split a system into parts. ==Start with the simplest style that works (a well-organised monolith) and split only when team size or scaling pain forces you to.== Microservices solve organisational and scaling problems but add network calls, data consistency issues and operational cost.
+IDEAS
+- Monolith :: One deployable unit. Easy to build, test and debug; hard to scale teams and parts independently.
+- Microservices :: Many small services, each owning its data and deployable alone. Great for large teams, but every call is now a network call that can fail.
+- Event-driven :: Services react to events instead of calling each other directly, which reduces coupling but makes flows harder to follow.
+- Serverless :: Run functions on demand with no servers to manage. Good for spiky or small workloads; watch cold starts and vendor lock-in.
+SAY
+- "I'd begin with a modular monolith and extract services where scaling or ownership demands it."
+AVOID
+- Proposing microservices for a small problem just because they sound modern.
+
+@dive 22-client-api-layer
+NUTSHELL
+The API is the contract between clients and your system. ==Good APIs are predictable, versioned, paginated, and safe to retry.== Choosing between REST, GraphQL and gRPC depends on who the callers are.
+IDEAS
+- REST :: Resources and standard verbs over HTTP. Simple, cacheable, universal; can lead to over-fetching or many round trips.
+- GraphQL :: The client asks for exactly the fields it needs from one endpoint. Great for varied front ends; needs care for query cost and caching.
+- gRPC :: Binary, typed and fast, ideal between internal services; less friendly to browsers.
+- Idempotency and pagination :: Use idempotency keys for writes that may be retried, and cursor-based pagination for lists that change.
+SAY
+- "Public API: REST with cursor pagination and idempotency keys. Internal calls: gRPC."
+AVOID
+- Offset pagination on large, changing lists, and breaking changes without versioning.
+
+@dive 23-networking-fundamentals
+NUTSHELL
+Every request crosses the network, so knowing the path explains most latency. ==A typical request does a DNS lookup, opens a TCP connection, negotiates TLS, sends HTTP, and may pass a CDN, a load balancer and a proxy on the way.== Each step costs round trips.
+IDEAS
+- DNS :: Turns a name into an IP and is cached at many levels (TTL). It is also a traffic-steering tool.
+- TCP vs UDP :: TCP is reliable and ordered but pays for handshakes and retransmission; UDP is fast with no guarantees (video, games, DNS).
+- HTTP/2 and HTTP/3 :: Multiplex many requests on one connection; HTTP/3 runs over QUIC to avoid head-of-line blocking.
+- L4 vs L7 load balancing :: L4 routes by IP and port (fast, simple); L7 understands HTTP and can route by path, header or cookie.
+SAY
+- "I'll cut round trips with keep-alive connections, HTTP/2 and a CDN, and terminate TLS near the user."
+AVOID
+- Ignoring that a cross-region call costs tens to hundreds of milliseconds.
+
+@dive 24-load-traffic-management
+NUTSHELL
+Load and traffic management spreads requests over servers and protects them from overload. ==A load balancer picks a healthy server using an algorithm, and rate limiting, gateways and health checks keep bad traffic and bad servers out of the path.==
+IDEAS
+- Algorithms :: Round robin is simple; least connections adapts to uneven requests; consistent hashing keeps related requests on the same server (good for caches).
+- Health checks :: The balancer stops sending traffic to servers that fail checks and brings them back when healthy.
+- Global traffic management :: GeoDNS or anycast sends users to the nearest region and fails over when one is down.
+- Rate limiting :: Caps per-client traffic to protect shared capacity and ensure fairness.
+SAY
+- "Two load balancers in active-passive or active-active so the balancer is not a single point of failure."
+AVOID
+- Sticky sessions as a default; they complicate scaling and failover.
+
+@dive 25-data-layer
+NUTSHELL
+Choosing storage is the most consequential early decision. ==Pick the database from the access pattern: relational for structured data and transactions, key-value or wide-column for scale and simple lookups, document for flexible records, search for text, graph for relationships, object storage for blobs.==
+IDEAS
+- Indexes :: Speed up reads at the cost of writes and space. B-trees suit reads and ranges; LSM trees suit heavy writes.
+- Replication :: Copies for availability and read scale; a leader accepts writes and followers copy them (with replication lag).
+- Sharding :: Splits data across machines by key for write and storage scale; the shard key decides balance and hot spots.
+- Polyglot persistence :: Real systems use several stores, each chosen for one job, kept in sync through events.
+SAY
+- "I'll start with a relational database and move specific workloads to specialised stores when the numbers demand it."
+AVOID
+- Choosing NoSQL "for scale" without a reason, or sharding before you need to.
+
+@dive 26-scalability
+NUTSHELL
+Scalability is handling growth without redesign. ==The standard path is: make servers stateless, scale them out behind a load balancer, cache aggressively, scale reads with replicas, then shard the data and move slow work to queues.==
+IDEAS
+- Stateless services :: No local user state, so any server can handle any request and you can add or remove servers freely.
+- Caching :: The cheapest scaling tool: serve repeated reads from memory or a CDN.
+- Read replicas vs sharding :: Replicas scale reads only; sharding scales writes and storage but adds complexity.
+- Asynchronous work :: Queues let a slow task (email, thumbnails) happen later, keeping the user's request fast.
+SAY
+- "I'd scale in this order: stateless app tier, cache, read replicas, then sharding."
+AVOID
+- Jumping straight to sharding or microservices before the simple steps are exhausted.
+
+@dive 27-distributed-systems
+NUTSHELL
+Once data or work spans machines, new problems appear: networks drop messages, clocks disagree, and machines fail halfway. ==Distributed systems design is about choosing what to guarantee when things go wrong.==
+IDEAS
+- CAP and PACELC :: During a partition you choose consistency or availability; even without one you trade latency against consistency.
+- Consensus :: Raft and Paxos let a group agree on a value (a leader, a log entry) with a majority, tolerating minority failures.
+- Time :: Clocks drift, so use logical clocks (Lamport, vector) or bounded-uncertainty clocks, not wall time, to order events.
+- Failure detection :: Heartbeats and timeouts can only suspect failure, never prove it, which is why leases and fencing tokens exist.
+SAY
+- "I'll state the consistency each operation needs, and use consensus only where it is truly required, such as leader election."
+AVOID
+- Assuming the network is reliable or that "exactly once" is free.
+
+@dive 28-messaging-events
+NUTSHELL
+Messaging decouples services in time: the sender does not wait for the receiver. ==Use a queue to spread work to workers, and a log or topic (Kafka) when many consumers need the same events.==
+IDEAS
+- Queue vs pub/sub :: A queue gives each message to one worker; pub/sub gives each message to every subscriber.
+- Delivery semantics :: At-most-once can lose messages, at-least-once can repeat them, and exactly-once effects come from idempotent consumers.
+- Ordering :: Guaranteed only within a partition; choose the partition key to keep related events together.
+- Dead-letter queues :: Park messages that keep failing so one poison message does not block the rest.
+SAY
+- "Consumers are idempotent, retries use backoff, and failures go to a dead-letter queue with alerts."
+AVOID
+- Assuming global ordering or exactly-once delivery from the broker alone.
+
+@dive 29-reliability
+NUTSHELL
+Reliability means the system keeps working when parts fail, because parts always fail. ==Design for failure: add redundancy, set timeouts, retry carefully, and stop failures from spreading.==
+IDEAS
+- Redundancy :: Multiple copies across failure domains (servers, racks, zones, regions) remove single points of failure.
+- Timeouts, retries and backoff :: Bound waiting, retry only safe operations, and add jitter so clients do not stampede.
+- Circuit breakers and bulkheads :: Fail fast on a broken dependency and isolate resources so one failure does not sink everything.
+- SLOs and error budgets :: Agree a target (99.9%); the remaining budget decides how much risk you may take.
+SAY
+- "I'll define the SLO first, then show how each component's failure is contained."
+AVOID
+- Retrying everywhere with no limits, which turns a hiccup into an outage.
+
+@dive 210-performance
+NUTSHELL
+Performance work starts with measurement, not guessing. ==Look at percentiles (p99), find the bottleneck, then apply the cheapest fix: cache, index, batch, or move work off the request path.==
+IDEAS
+- Latency vs throughput :: How fast one request is versus how many you finish per second; optimising one can hurt the other.
+- Tail latency :: The slowest 1% dominate user experience in systems that call many services, because the slowest call decides the total.
+- Caching layers :: Browser, CDN, application cache, database cache: each removes work from the next layer.
+- Batching and compression :: Fewer, bigger operations and smaller payloads cut overhead.
+SAY
+- "I'd profile first, fix the biggest bottleneck, and watch p99, not the average."
+AVOID
+- Optimising before measuring, or quoting only averages.
+
+@dive 211-consistency-data-patterns
+NUTSHELL
+Keeping data correct across several services is harder than inside one database. ==Patterns like saga, outbox, CQRS and event sourcing let you stay consistent without a giant distributed transaction.==
+IDEAS
+- Saga :: A chain of local transactions with compensating steps to undo earlier ones if a later step fails.
+- Outbox pattern :: Write the event to a table in the same transaction as the data, then publish it, so database and events never disagree.
+- CQRS :: Separate models for writes and reads, so reads can be denormalised and fast.
+- Event sourcing :: Store changes as immutable events and rebuild state by replaying them, which gives a full audit trail.
+SAY
+- "I'd use the outbox pattern so publishing an event and saving data cannot diverge."
+AVOID
+- Dual writes to a database and a queue without an outbox: one of them will eventually fail alone.
+
+@dive 212-security
+NUTSHELL
+Security is layers of defence, assuming any single layer may fail. ==Authenticate who is calling, authorise what they may do, encrypt data in transit and at rest, and validate every input.==
+IDEAS
+- Authentication vs authorisation :: Who are you (passwords, OAuth, tokens) versus what may you do (roles and permissions, RBAC).
+- Tokens :: JWTs carry signed claims so services can verify identity without a database call; keep them short-lived and revocable.
+- Encryption :: TLS protects data in transit; encryption at rest with keys in a KMS protects stored data.
+- Common attacks :: Injection (use parameterised queries), XSS and CSRF (escape output, use tokens), DDoS (rate limits, CDN, WAF).
+SAY
+- "Least privilege everywhere, secrets in a vault, and an audit log for sensitive actions."
+AVOID
+- Rolling your own crypto or storing plain-text secrets and passwords.
+
+@dive 213-observability
+NUTSHELL
+Observability lets you ask new questions about a running system without shipping new code. ==The three signals are metrics (what is happening), logs (what happened) and traces (where the time went).==
+IDEAS
+- Metrics :: Numbers over time, cheap to store and good for dashboards and alerts (error rate, latency percentiles, saturation).
+- Logs :: Detailed event records; use structured fields and a request ID to follow one request.
+- Traces :: A request's path through services as spans, showing where latency or errors come from.
+- Alerting :: Alert on user-visible symptoms (SLO burn), not on every internal blip.
+SAY
+- "I'd add RED metrics (rate, errors, duration) per service and propagate a trace ID everywhere."
+AVOID
+- Alerts nobody can act on, and logs without correlation IDs.
+
+@dive 214-infrastructure
+NUTSHELL
+Infrastructure is where your code runs: cloud regions, zones, containers and the pipeline that delivers changes. ==Treat infrastructure as code and deploy through automated, gradual pipelines.==
+IDEAS
+- Regions and availability zones :: Zones are isolated data centres within a region; spread across zones for availability, across regions for disasters.
+- Containers and Kubernetes :: Package apps consistently and let an orchestrator schedule, heal and scale them.
+- CI/CD :: Every change is built, tested and rolled out automatically, with canary stages and rollback.
+- Infrastructure as code :: Environments are defined in version-controlled files, so they are reproducible and reviewable.
+SAY
+- "Three availability zones per region, stateless services in containers, and canary deploys with automatic rollback."
+AVOID
+- Hand-configured servers that nobody can recreate.
+
+@dive 215-modern-ai-systems
+NUTSHELL
+AI features add a new kind of component: a model that is expensive, slow and probabilistic. ==Treat the model as a dependency with latency, cost, quality and safety budgets.==
+IDEAS
+- LLM serving :: GPU-bound, memory-heavy; throughput comes from batching and caching (see the LLM serving case study).
+- RAG :: Retrieve relevant documents first, then have the model answer from them, which reduces made-up answers and keeps knowledge fresh.
+- Vector databases :: Store embeddings and find nearest neighbours quickly for semantic search and recommendations.
+- Guardrails and evaluation :: Validate inputs and outputs, and measure quality continuously, since models change and fail in new ways.
+SAY
+- "I'd cache frequent answers, stream tokens to the user, and evaluate retrieval separately from generation."
+AVOID
+- Calling a model synchronously on every request with no fallback or budget.
+
+@dive 216-design-principles
+NUTSHELL
+Principles are shortcuts for making good decisions under uncertainty. ==Keep things simple, separate concerns, and make failures and change cheap.==
+IDEAS
+- Separation of concerns and loose coupling :: Each part has one job and talks to others through narrow interfaces, so changes stay local.
+- Idempotency :: Operations that are safe to repeat make retries and recovery simple.
+- Design for failure and for change :: Assume parts break and requirements shift; prefer reversible decisions.
+- YAGNI and KISS :: Do not build for imagined needs; the simplest design that meets the requirements wins.
+SAY
+- "I'll name the trade-off behind each choice, not only the choice."
+AVOID
+- Over-engineering for scale that the requirements never mention.
+
+@dive 217-data-processing-at-scale
+NUTSHELL
+When data is too big for one machine you process it in parallel. ==Batch jobs process stored data in bulk for throughput; stream processors handle events continuously for freshness.==
+IDEAS
+- Batch (MapReduce, Spark) :: Split the data, process pieces in parallel, combine results. High throughput, minutes to hours of delay.
+- Stream (Flink, Kafka Streams) :: Process events as they arrive with windows and watermarks for low latency.
+- Lambda vs Kappa :: Lambda runs batch and stream side by side; Kappa uses only streaming and replays the log when needed.
+- Warehouse and lake :: Columnar stores for analytics (OLAP) separate from the transactional database (OLTP).
+SAY
+- "Operational data goes to the database; a change stream feeds the warehouse for analytics."
+AVOID
+- Running heavy analytics directly on the production database.
+
+@dive 218-transactions-concurrency-control
+NUTSHELL
+A transaction groups operations so they succeed or fail together. ==Isolation levels decide which anomalies you allow; stronger isolation is safer but slower.==
+IDEAS
+- ACID :: Atomicity, Consistency, Isolation, Durability: the promises of a transactional database.
+- Isolation levels :: Read committed avoids dirty reads; snapshot isolation gives a stable view; serializable behaves as if transactions ran one at a time.
+- Locking vs MVCC :: Locks block conflicting access; MVCC keeps old versions so readers do not block writers.
+- Optimistic vs pessimistic :: Assume no conflict and check a version at commit, or lock first to prevent conflicts.
+SAY
+- "For money I'd use serializable or explicit locking; for most reads, snapshot isolation is plenty."
+AVOID
+- Assuming the default isolation level protects you from lost updates and write skew.
+
+@dive 219-data-encoding-schema-evolution
+NUTSHELL
+Data outlives the code that wrote it, and old and new versions of services run together during rollouts. ==Choose an encoding that lets schemas change without breaking readers.==
+IDEAS
+- JSON :: Human-readable and universal, but verbose and loosely typed.
+- Protobuf and Avro :: Compact binary formats with schemas; fields have numbers or names so they can be added or removed safely.
+- Backward and forward compatibility :: New code can read old data (backward) and old code can read new data (forward); both are needed in rolling deployments.
+- Schema registry :: A central place that stores schemas and checks compatibility before a change is published.
+SAY
+- "Only add optional fields, never reuse a field number, and test compatibility in CI."
+AVOID
+- Renaming or changing the type of a field in place.

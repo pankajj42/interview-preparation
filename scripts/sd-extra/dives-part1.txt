@@ -1,0 +1,148 @@
+@dive 11-object-oriented-programming-foundations
+NUTSHELL
+Object-oriented design models a problem as **objects that hold data and behaviour**. ==The four pillars are encapsulation, abstraction, inheritance and polymorphism, and good designs lean on composition more than inheritance.==
+IDEAS
+- Encapsulation :: Keep data private and expose behaviour, so internals can change without breaking callers.
+- Abstraction :: Show what something does, hide how (an interface or abstract class).
+- Inheritance vs composition :: Inheritance says "is a" and ties child to parent tightly; composition says "has a" and is usually more flexible.
+- Polymorphism :: Different classes answer the same call differently, so callers depend on an interface, not a concrete type.
+SAY
+- "I'll model nouns as classes, verbs as methods, and prefer interfaces and composition."
+AVOID
+- Deep inheritance trees and public fields.
+
+@dive 12-uml-communicating-the-design
+NUTSHELL
+UML is a drawing language to communicate a design quickly. ==In an interview you only need class diagrams (what exists and how it relates) and sequence diagrams (how objects talk over time).==
+IDEAS
+- Class diagram :: Boxes for classes with fields and methods; lines for relationships such as association, aggregation, composition and inheritance.
+- Association, aggregation, composition :: "uses", "has (can exist alone)", "owns (dies together)".
+- Sequence diagram :: Lifelines and arrows showing the order of calls for one scenario.
+SAY
+- "I'll sketch the main classes and relationships first, then walk one scenario as a sequence."
+AVOID
+- Drawing every field and method; show only what supports the explanation.
+
+@dive 13-solid-principles
+NUTSHELL
+SOLID is five rules that keep object-oriented code easy to change. ==Most interview follow-ups ("how would you add a new vehicle type?") are really asking whether your design respects Open/Closed.==
+IDEAS
+- Single Responsibility :: A class should have one reason to change.
+- Open/Closed :: Add behaviour by adding new code (a new class), not by editing working code.
+- Liskov Substitution :: A subclass must work anywhere its parent is expected.
+- Interface Segregation :: Many small interfaces beat one large one.
+- Dependency Inversion :: Depend on abstractions, and inject concrete classes from outside.
+SAY
+- "New pricing rules are new Strategy classes, so the Parking Lot class never changes."
+AVOID
+- A "God class" that knows everything.
+
+@dive 14-the-23-design-patterns-gang-of-four
+NUTSHELL
+Design patterns are named, reusable solutions. ==Knowing about eight or ten of them well beats memorising all 23: Strategy, Observer, Factory, Singleton, Decorator, State, Command, Builder, Adapter and Facade cover most interviews.==
+IDEAS
+- Strategy :: Swap algorithms at runtime (pricing, routing, payment methods).
+- Observer :: Notify many listeners when something changes (notifications, UI updates).
+- Factory :: Create objects without the caller naming the concrete class.
+- State :: An object's behaviour changes with its state (elevator, order, vending machine).
+- Decorator :: Add behaviour by wrapping an object (add-ons, logging, compression).
+- Singleton :: One shared instance; use sparingly, it is global state.
+SAY
+- "I'd use Strategy here because pricing varies; it also satisfies Open/Closed."
+AVOID
+- Forcing a pattern where a simple function would do.
+
+@dive 15-worked-lld-case-studies
+NUTSHELL
+A low-level design interview follows a repeatable routine. ==Clarify requirements, list the main entities, define relationships, write the key interfaces and methods, then handle extensions and concurrency.==
+STEPS
+- Clarify the scope: what must it do, and what is out of scope?
+- Identify the nouns (entities) and the verbs (operations).
+- Draw classes and relationships; choose patterns only where they fit.
+- Code the core flow and one extension.
+- Discuss thread safety, error handling and how you would test it.
+SAY
+- "Let me state my assumptions, then list entities before I write any code."
+AVOID
+- Starting to code before agreeing on requirements.
+
+@dive design-a-parking-lot
+NUTSHELL
+A parking lot has floors, spots of different sizes, vehicles, tickets and payment. ==The key decisions are how to model spot types, how to find a free spot quickly, and how to make pricing replaceable.==
+STEPS
+- Entities: `ParkingLot`, `Floor`, `ParkingSpot` (compact, regular, large), `Vehicle` (motorbike, car, truck), `Ticket`, `Payment`.
+- Entry: pick the first suitable free spot (nearest to the entrance) and issue a ticket with the entry time.
+- Exit: compute the fee from the elapsed time, take payment, free the spot.
+- Spot lookup uses free-spot sets per type, so allocation is O(1) rather than scanning every spot.
+IDEAS
+- Strategy for pricing :: Hourly, flat and weekend rates are separate classes behind one interface, so adding a rule never edits `ParkingLot`.
+- Factory for vehicles and spots :: Creation logic is in one place.
+- Concurrency :: Two cars must not get the same spot, so allocation is guarded by a lock or an atomic "claim" operation.
+SAY
+- "Spot allocation is a data-structure problem; pricing is a Strategy; both are easy to extend."
+AVOID
+- Scanning all spots for each car, and hard-coding prices inside the lot class.
+
+@dive design-an-elevator-system
+NUTSHELL
+An elevator system accepts requests and decides which car should serve which request. ==Each elevator is a state machine (idle, moving up, moving down, doors open), and a scheduler decides assignments.==
+STEPS
+- Entities: `Elevator`, `Request` (hall call or car call), `Controller` or `Scheduler`, `Door`, `Button`.
+- A hall call (floor and direction) goes to the controller, which picks an elevator.
+- Each elevator keeps sorted sets of stops above and below and continues in its direction until no stops remain, like the SCAN disk algorithm.
+- State transitions drive the doors and motor.
+IDEAS
+- State pattern :: Idle, MovingUp, MovingDown and DoorsOpen are separate state objects, so behaviour is not buried in `if` chains.
+- Scheduling strategy :: Nearest car, least busy, or same-direction first; keep it replaceable (Strategy).
+- Observer :: Floor displays and notifications subscribe to elevator events.
+SAY
+- "Each car follows SCAN, and the controller chooses the car with the lowest estimated cost for a new request."
+AVOID
+- One giant method with nested conditions for every state.
+
+@dive design-a-movie-ticket-booking-system
+NUTSHELL
+Users browse movies, pick a show and seats, pay and receive tickets. ==The central problem is that two people must never book the same seat, so seat selection needs a temporary hold and an atomic check.==
+STEPS
+- Entities: `Cinema`, `Screen`, `Show`, `Seat`, `Booking`, `Payment`, `User`.
+- Select seats: atomically mark them "held" with a timeout, only if they are free.
+- Pay within the timeout; success turns the hold into a confirmed booking, failure releases the seats.
+- Notifications are sent after confirmation.
+IDEAS
+- Seat state machine :: Available, Held, Booked, with a timer that moves Held back to Available.
+- Concurrency control :: A database constraint, row lock or atomic compare-and-set prevents double booking.
+- Separation of Show and Seat :: A seat belongs to a screen, but its availability belongs to a specific show.
+SAY
+- "Booking is a small transaction guarded by the database; the hold with an expiry handles abandoned carts."
+AVOID
+- Checking availability and then writing in separate steps.
+
+@dive design-a-library-management-system
+NUTSHELL
+A library tracks books, copies, members, loans, reservations and fines. ==Separate a Book (the title) from a BookCopy (a physical item); loans and reservations attach to copies.==
+STEPS
+- Entities: `Book`, `BookCopy`, `Member`, `Loan`, `Reservation`, `Fine`, `Librarian`.
+- Borrow: check the member's limits and unpaid fines, find an available copy, create a `Loan` with a due date.
+- Return: close the loan, calculate any fine, and offer the copy to the next reservation.
+- Search by title, author or ISBN through an index.
+IDEAS
+- Book vs copy :: Many copies share one title; this avoids duplicated metadata and makes availability per copy clear.
+- Strategy for fines :: Fine rules differ by member type and can change, so they are pluggable.
+- Observer :: Reservation holders are notified when a copy is returned.
+SAY
+- "Rules like loan limits and fine rates are policies, so they live in their own classes."
+AVOID
+- Putting everything on one `Library` class.
+
+@dive further-lld-practice-problems
+NUTSHELL
+Practise on varied problems, and use the same routine each time. ==Most problems reduce to a handful of recurring shapes: a state machine, a resource pool, a scheduler, a rule engine or an event notifier.==
+IDEAS
+- State machine :: Vending machine, ATM, traffic light, order lifecycle.
+- Resource pool and allocation :: Parking lot, hotel booking, meeting rooms.
+- Rule or strategy engine :: Pricing, discounts, spam filters.
+- Observer and event notifier :: Pub/sub, stock tickers, notification service.
+SAY
+- "This looks like a state machine plus a strategy; let me define the states first."
+AVOID
+- Memorising solutions; recognise the shape instead.

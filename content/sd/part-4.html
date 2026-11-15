@@ -15,7 +15,7 @@
 </tr>
 <tr>
 <td>Estimation</td>
-<td>QPS, storage/year, bandwidth — three numbers, out loud</td>
+<td><abbr class="gl" tabindex="0" data-def="Queries (requests) per second: the standard way to size a system.">QPS</abbr>, storage/year, bandwidth — three numbers, out loud</td>
 </tr>
 <tr>
 <td>High-level design</td>
@@ -41,8 +41,8 @@
 </thead>
 <tbody>
 <tr>
-<td>"Must never lose a transaction" / financial ledger</td>
-<td>SQL (ACID)</td>
+<td>"Must never lose a <abbr class="gl" tabindex="0" data-def="A group of operations that succeed or fail as one unit.">transaction</abbr>" / financial ledger</td>
+<td>SQL (<abbr class="gl" tabindex="0" data-def="Transaction promises: Atomic (all or nothing), Consistent, Isolated (no interference) and Durable (survives crashes).">ACID</abbr>)</td>
 </tr>
 <tr>
 <td>Schema will change often, nested data</td>
@@ -108,15 +108,15 @@
 <tbody>
 <tr>
 <td>Simple, resilient to cache failure</td>
-<td>Cache-aside</td>
+<td><abbr class="gl" tabindex="0" data-def="The app checks the cache first; on a miss it reads the database and then fills the cache.">Cache-aside</abbr></td>
 </tr>
 <tr>
 <td>Cache must never look stale after a write</td>
-<td>Write-through</td>
+<td><abbr class="gl" tabindex="0" data-def="Write to the cache and the database together, so the cache is always fresh but each write is slower.">Write-through</abbr></td>
 </tr>
 <tr>
 <td>Writes must be fast, some loss risk tolerable</td>
-<td>Write-behind</td>
+<td><abbr class="gl" tabindex="0" data-def="Write to the cache first and flush to the database later. Fast, but data can be lost if the cache dies first.">Write-behind</abbr></td>
 </tr>
 <tr>
 <td>Full data set, hands-off population</td>
@@ -124,7 +124,7 @@
 </tr>
 <tr>
 <td>Cache full, pick what to evict</td>
-<td>LRU (default) or LFU (stable popularity)</td>
+<td><abbr class="gl" tabindex="0" data-def="Choosing what to throw out when a cache is full. LRU drops the least recently used item, LFU the least frequently used.">LRU</abbr> (default) or <abbr class="gl" tabindex="0" data-def="Choosing what to throw out when a cache is full. LRU drops the least recently used item, LFU the least frequently used.">LFU</abbr> (stable popularity)</td>
 </tr>
 </tbody>
 </table>
@@ -143,15 +143,15 @@
 </tr>
 <tr>
 <td>Strict precision</td>
-<td>Sliding window log</td>
+<td><abbr class="gl" tabindex="0" data-def="Counting requests over a moving time window, which avoids the burst-at-the-boundary problem of fixed windows.">Sliding window</abbr> log</td>
 </tr>
 <tr>
 <td>Scalable public API default</td>
-<td>Sliding window counter or token bucket</td>
+<td>Sliding window counter or <abbr class="gl" tabindex="0" data-def="A bucket refills with tokens at a steady rate and each request takes one. It allows short bursts but caps the average rate.">token bucket</abbr></td>
 </tr>
 <tr>
 <td>Must smooth output to a constant rate</td>
-<td>Leaky bucket</td>
+<td><abbr class="gl" tabindex="0" data-def="Requests enter a queue that drains at a fixed rate, smoothing bursts into a steady flow.">Leaky bucket</abbr></td>
 </tr>
 </tbody>
 </table>
@@ -165,16 +165,16 @@
 </thead>
 <tbody>
 <tr>
-<td>Leader election / distributed locks / config</td>
+<td><abbr class="gl" tabindex="0" data-def="Machines agreeing on who is in charge right now, so only one of them makes decisions.">Leader election</abbr> / distributed locks / config</td>
 <td>ZooKeeper, etcd, Consul</td>
 </tr>
 <tr>
 <td>Understandable replicated log implementation</td>
-<td>Raft</td>
+<td><abbr class="gl" tabindex="0" data-def="A protocol that lets a group of machines agree on one value even when some fail. Raft and Paxos are the famous ones.">Raft</abbr></td>
 </tr>
 <tr>
 <td>Historically foundational reference</td>
-<td>Paxos</td>
+<td><abbr class="gl" tabindex="0" data-def="A protocol that lets a group of machines agree on one value even when some fail. Raft and Paxos are the famous ones.">Paxos</abbr></td>
 </tr>
 </tbody>
 </table>
@@ -200,7 +200,7 @@
 <td>AP — answers with best-available data</td>
 </tr>
 <tr>
-<td>DNS</td>
+<td><abbr class="gl" tabindex="0" data-def="The internet&#x27;s phone book: turns names like example.com into IP addresses.">DNS</abbr></td>
 <td>AP — a stale answer beats no answer</td>
 </tr>
 </tbody>
@@ -232,7 +232,7 @@
 </tr>
 <tr>
 <td>Minimize reshuffling on resize</td>
-<td>Consistent hashing (on top of hash-based)</td>
+<td><abbr class="gl" tabindex="0" data-def="Maps keys to servers so that adding or removing a server moves only a small share of the keys.">Consistent hashing</abbr> (on top of hash-based)</td>
 </tr>
 </tbody>
 </table>
@@ -247,58 +247,58 @@
 <tbody>
 <tr>
 <td>"Real-time, bidirectional"</td>
-<td>WebSocket</td>
+<td><abbr class="gl" tabindex="0" data-def="A long-lived two-way connection between browser and server, used for real-time messaging.">WebSocket</abbr></td>
 </tr>
 <tr>
 <td>"Stream updates to the client, one direction"</td>
-<td>Server-Sent Events</td>
+<td><abbr class="gl" tabindex="0" data-def="A one-way stream from server to browser over plain HTTP, good for live updates.">Server-Sent Events</abbr></td>
 </tr>
 <tr>
-<td>"Exactly-once side effects despite retries"</td>
-<td>Idempotency key + dedupe table</td>
+<td>"<abbr class="gl" tabindex="0" data-def="Each message takes effect once. In practice this is at-least-once delivery plus idempotent processing.">Exactly-once</abbr> side effects despite retries"</td>
+<td><abbr class="gl" tabindex="0" data-def="A unique ID sent with a request so the server can recognise a retry and not repeat the action.">Idempotency key</abbr> + dedupe table</td>
 </tr>
 <tr>
 <td>"Multiple services, one atomic-feeling operation"</td>
-<td>Saga (choreography or orchestration)</td>
+<td><abbr class="gl" tabindex="0" data-def="A long business operation split into local steps, each with an undo (&quot;compensating&quot;) step in case a later step fails.">Saga</abbr> (choreography or orchestration)</td>
 </tr>
 <tr>
 <td>"Full audit trail / time travel"</td>
-<td>Event sourcing</td>
+<td><abbr class="gl" tabindex="0" data-def="Store every change as an immutable event; the current state is rebuilt by replaying the events.">Event sourcing</abbr></td>
 </tr>
 <tr>
 <td>"Reads and writes have wildly different load"</td>
-<td>CQRS</td>
+<td><abbr class="gl" tabindex="0" data-def="Command-Query Responsibility Segregation: separate models for writing and for reading, each tuned for its job.">CQRS</abbr></td>
 </tr>
 <tr>
 <td>"Protect a downstream dependency from cascading failure"</td>
-<td>Circuit breaker</td>
+<td><abbr class="gl" tabindex="0" data-def="Stops calling a failing dependency for a while so it can recover and callers fail fast instead of piling up.">Circuit breaker</abbr></td>
 </tr>
 <tr>
 <td>"Find things near a location"</td>
-<td>Geohash / Quadtree / H3</td>
+<td><abbr class="gl" tabindex="0" data-def="Ways of turning latitude and longitude into cells or IDs, so &quot;find things nearby&quot; becomes a cheap lookup.">Geohash</abbr> / <abbr class="gl" tabindex="0" data-def="Ways of turning latitude and longitude into cells or IDs, so &quot;find things nearby&quot; becomes a cheap lookup.">Quadtree</abbr> / <abbr class="gl" tabindex="0" data-def="Ways of turning latitude and longitude into cells or IDs, so &quot;find things nearby&quot; becomes a cheap lookup.">H3</abbr></td>
 </tr>
 <tr>
 <td>"Dedupe URLs across a huge, uncertain set"</td>
-<td>Bloom filter</td>
+<td><abbr class="gl" tabindex="0" data-def="A tiny structure that answers &quot;definitely not here&quot; or &quot;maybe here&quot;, saving expensive lookups.">Bloom filter</abbr></td>
 </tr>
 <tr>
 <td>"One writer, many readers, minimize reshuffle on scale change"</td>
-<td>Consistent hashing</td>
+<td><abbr class="gl" tabindex="0" data-def="Maps keys to servers so that adding or removing a server moves only a small share of the keys.">Consistent hashing</abbr></td>
 </tr>
 <tr>
-<td>"Ground an LLM's answer in our own data"</td>
-<td>RAG + vector DB</td>
+<td>"Ground an <abbr class="gl" tabindex="0" data-def="Large language model: a neural network trained on huge amounts of text to predict and generate text.">LLM</abbr>'s answer in our own data"</td>
+<td><abbr class="gl" tabindex="0" data-def="Retrieval-augmented generation: fetch relevant documents first, then let an LLM answer using them.">RAG</abbr> + vector DB</td>
 </tr>
 <tr>
 <td>"Update the DB and publish an event, atomically"</td>
-<td>Outbox pattern (+ CDC to relay it)</td>
+<td><abbr class="gl" tabindex="0" data-def="Save the event in an outbox table in the same transaction as the data, then publish it later, so events are never lost or invented.">Outbox pattern</abbr> (+ <abbr class="gl" tabindex="0" data-def="Reading a database&#x27;s change log to stream every insert, update and delete to other systems.">CDC</abbr> to relay it)</td>
 </tr>
 <tr>
-<td>"A lock must stay safe even if the holder pauses past its TTL"</td>
+<td>"A lock must stay safe even if the holder pauses past its <abbr class="gl" tabindex="0" data-def="Time to live: how long a cached value or DNS answer stays valid before it must be refreshed.">TTL</abbr>"</td>
 <td>Fencing tokens</td>
 </tr>
 <tr>
-<td>"One key/record is getting way more traffic than the rest"</td>
+<td>"One key/record is getting way more traffic than the <abbr class="gl" tabindex="0" data-def="A style of HTTP API built around resources and standard verbs (GET, POST, PUT, DELETE).">rest</abbr>"</td>
 <td>Key salting + local cache + single-flight (the hot-key toolkit)</td>
 </tr>
 <tr>
@@ -307,11 +307,11 @@
 </tr>
 <tr>
 <td>"Approximate unique-count over a huge stream, memory-constrained"</td>
-<td>HyperLogLog</td>
+<td><abbr class="gl" tabindex="0" data-def="Counts unique items (such as daily visitors) with only a few KB of memory and about 1% error.">HyperLogLog</abbr></td>
 </tr>
 <tr>
 <td>"One slow dependency shouldn't exhaust resources shared with others"</td>
-<td>Bulkhead (isolated pools per dependency)</td>
+<td><abbr class="gl" tabindex="0" data-def="Giving each dependency its own pool of threads or connections, so one failure cannot sink the whole service.">Bulkhead</abbr> (isolated pools per dependency)</td>
 </tr>
 <tr>
 <td>"A counter is getting hammered by concurrent writes"</td>
@@ -349,8 +349,8 @@
 <td>Memory is roughly 1,000,000× faster</td>
 </tr>
 <tr>
-<td>A well-tuned single relational DB, rough QPS ceiling</td>
-<td>Low tens of thousands before sharding conversations start</td>
+<td>A well-tuned single relational DB, rough <abbr class="gl" tabindex="0" data-def="Queries (requests) per second: the standard way to size a system.">QPS</abbr> ceiling</td>
+<td>Low tens of thousands before <abbr class="gl" tabindex="0" data-def="Splitting data across machines by a key, so each machine holds only part of it.">sharding</abbr> conversations start</td>
 </tr>
 </tbody>
 </table>

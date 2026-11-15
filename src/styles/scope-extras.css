@@ -1,5 +1,5 @@
 /* Wrappers for the two original guides rendered inside the app */
-.sd-scope { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.sd-scope { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; overflow: clip; }
 .sd-scope .content-wrap { margin: 0 auto; padding: 26px 22px 44px; }
 .sd-scope .hero { padding-top: 8px; }
 .sd-scope .sd-slot { display: inline-block; }

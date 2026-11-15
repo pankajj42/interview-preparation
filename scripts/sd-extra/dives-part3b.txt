@@ -1,0 +1,269 @@
+@dive design-reddit
+NUTSHELL
+Reddit is communities (subreddits) holding posts and **nested comment threads**, ranked by votes. Two things make it different from a plain feed: ranking that changes constantly as votes arrive, and comment trees that can be thousands of replies deep.
+==Do not recompute rankings on every read; recompute on a schedule or when scores change, and cache the sorted result per community.==
+ANALOGY
+A town-hall notice board per topic: people pin posts, others give thumbs-up or down, and the board is re-sorted every few minutes rather than after every single vote.
+STEPS
+- A vote is written to a fast store and queued; counters for a post are updated asynchronously.
+- A ranking job computes "hot", "top" and "new" scores per post and refreshes the cached sorted list for each community.
+- Opening a community reads the cached list of post IDs, then loads post details from cache.
+- Comments are stored with a parent pointer (or materialised path) so a thread can be fetched in one query and assembled into a tree.
+- Large threads load the top few levels and "load more" lazily.
+IDEAS
+- Hot ranking :: A formula mixing votes and age so new popular posts rise and old ones sink, without anyone re-sorting by hand.
+- Vote counting :: Votes are write-heavy and hot for viral posts, so they are buffered and applied in batches; the count shown can be slightly stale.
+- Comment trees :: Store each comment's parent (or path like `1/4/9`) and fetch a subtree in one go; sort siblings by score.
+- Sharding by community :: Posts and comments for one community stay together, but giant communities need extra splitting by time or post ID.
+SAY
+- "Rankings are precomputed and cached; votes are eventually consistent and that is acceptable."
+- "I'll fetch comment trees by materialised path and paginate deep branches."
+AVOID
+- Recursive queries per comment level.
+- Re-sorting on every page view.
+
+@dive design-a-news-feed-generic-eg-facebook
+NUTSHELL
+A news feed collects what your friends, pages and groups posted and orders it so you see the most relevant first. Unlike a simple timeline it is **ranked**, not just newest-first, so a ranking step sits between "gather candidates" and "show".
+==Think in three stages: gather candidate posts, score them, then filter and show the best.==
+ANALOGY
+A personal editor who gathers today's stories from everyone you know, picks the ones you will care about most, and puts them on the front page.
+STEPS
+- Candidate generation: collect recent posts from your connections (fan-out on write for normal users, on read for very popular ones).
+- Feature lookup: for each candidate fetch signals (relationship strength, recency, post type, past engagement).
+- Ranking: a model scores each candidate for you; the top results are sorted.
+- Filtering and diversity: remove seen, blocked or policy-violating items and avoid too many from one source.
+- The ranked page is cached briefly and returned with a cursor for the next page.
+IDEAS
+- Candidate generation vs ranking :: A cheap first pass narrows thousands to hundreds; an expensive model scores only those.
+- Cursor pagination :: Use "after this item" so new posts arriving do not shift pages and cause duplicates.
+- Feature store :: A low-latency store of precomputed signals the ranker reads, so scoring stays within the latency budget.
+- Cold start :: New users have no history, so fall back to popular or recent content until signals accumulate.
+SAY
+- "I'll separate retrieval from ranking so each can scale and be improved independently."
+- "Feed pages use cursor pagination so inserts do not cause repeats."
+AVOID
+- Scoring every post from every friend at read time.
+- Using offset pagination on a feed that changes constantly.
+
+@dive design-a-notification-system
+NUTSHELL
+A notification system tells users about events through channels such as push, SMS, email and in-app. It must be **reliable (do not lose important ones), respectful (do not spam) and fast**, while depending on slow third-party providers.
+==Put a queue between "an event happened" and "send it", so a slow or failing provider never blocks the rest of the system.==
+ANALOGY
+A post office: letters (events) go into a sorting room, are routed by type (push, SMS, email), and the post office tracks which ones were delivered and retries the failed ones.
+STEPS
+- A service publishes an event ("order shipped") to a queue.
+- The notification service looks up the user's preferences, quiet hours and device tokens, and applies **deduplication and rate limits**.
+- It renders the message from a template in the user's language.
+- It places a job on a per-channel queue (push, SMS, email).
+- A channel worker calls the provider (APNs, FCM, an email or SMS vendor), records the result and retries failures with backoff.
+- Delivery receipts and user actions are stored for analytics and "did it send?" questions.
+IDEAS
+- Per-channel queues :: A slow email provider must not delay urgent push messages, so each channel scales and fails separately.
+- Idempotency :: Retries and duplicate events must not send two texts. A unique notification key makes a repeat harmless.
+- Priority :: Security codes jump the queue; marketing waits and respects quiet hours and caps.
+- Provider failures :: Retry with backoff, then fall over to a second provider or a dead-letter queue for investigation.
+SAY
+- "Events go on a durable queue; sending is asynchronous and at-least-once with idempotent delivery."
+- "User preferences and rate caps are checked before anything is sent."
+AVOID
+- Calling the provider synchronously inside the user's request.
+- Forgetting opt-out, quiet hours and duplicate suppression.
+
+@dive design-whatsapp-a-chat-system
+NUTSHELL
+A chat system moves messages between people in real time, keeps them in order, and still delivers them when the recipient was offline. ==Users hold a persistent WebSocket connection to a chat server, and every message is stored before it is acknowledged.==
+The hard parts are keeping millions of open connections, routing a message to the right server, and handling offline users and read receipts.
+ANALOGY
+A switchboard operator with a permanent line to each person: when you speak, she writes the message in a ledger first, then passes it to the other person's line, or holds it until that person reconnects.
+STEPS
+- The client opens a WebSocket to a chat gateway; a session service records "user X is on gateway G".
+- The sender transmits a message with a client-generated ID.
+- The server stores it durably (message store keyed by chat ID and sequence), then acknowledges "sent".
+- It looks up the recipient's gateway and pushes the message; if offline, it queues a push notification.
+- The recipient's app acknowledges, producing "delivered" and later "read" receipts.
+- On reconnect the client asks for messages after its last sequence number.
+IDEAS
+- Connection layer vs message layer :: Gateways only hold connections and are otherwise stateless; a separate service stores and routes messages, so each scales independently.
+- Ordering :: Each chat has a monotonically increasing sequence number, so clients can order messages and detect gaps.
+- Group chats :: Fan out to members; for large groups use a pub/sub channel per group and store the message once.
+- Delivery semantics :: At-least-once delivery plus de-duplication by message ID gives users the effect of exactly-once.
+SAY
+- "WebSockets for push, with a presence/session service mapping users to gateways."
+- "Store first, then deliver; the client reconciles using sequence numbers."
+AVOID
+- Using plain HTTP polling at this scale.
+- Acknowledging a message before it is durably stored.
+
+@dive design-slack
+NUTSHELL
+Slack is a chat system organised into **workspaces, channels and threads**, with search, files, integrations and notifications on top. Compared with WhatsApp, the data model and search matter more, and large channels can have thousands of members.
+==Treat the workspace as the unit of sharding: all of its channels, messages and members live together, which keeps queries local.==
+ANALOGY
+An office building where each company (workspace) has its own floor of meeting rooms (channels); messages are pinned in each room and a librarian indexes everything for search.
+STEPS
+- Clients connect over WebSockets to gateways that subscribe to the channels the user belongs to.
+- A new message is written to the message store (partitioned by workspace and channel) with a per-channel sequence.
+- The message is published to the channel's subscribers; unread counts and mentions are updated.
+- A background indexer streams messages into a search index (per workspace).
+- Notification rules decide who gets a push or email based on mentions and settings.
+- Thread replies attach to a parent message ID and update the thread summary.
+IDEAS
+- Workspace sharding :: Most queries stay inside one workspace, so sharding by workspace avoids cross-shard work; very large workspaces can be split further by channel.
+- Unread counts :: Keep a "last read" marker per user and channel; unread is the difference to the latest sequence, with no need to count messages.
+- Search :: An inverted index fed asynchronously; permissions are enforced at query time so users only see channels they belong to.
+- Large channels :: Per-member fan-out is too costly, so members subscribe to a channel topic and the server broadcasts once.
+SAY
+- "Messaging reuses the WhatsApp design; the new problems are workspace-scoped sharding, unread state and permissioned search."
+- "Search is eventually consistent; a message appears in results within seconds."
+AVOID
+- Per-user copies of every channel message.
+- Forgetting access control in search results.
+
+@dive design-google-docs-real-time-collaborative-editing
+NUTSHELL
+Several people edit the same document at the same moment and everyone must end up with **exactly the same text**, without anyone's typing being lost. The two classic techniques are Operational Transformation (OT) and CRDTs.
+==The server needs one agreed order of edits, or edits that merge no matter in which order they arrive.==
+ANALOGY
+Two people editing the same sentence on separate copies: if you simply swap pages the second person's edit overwrites the first. A smart editor instead adjusts each person's change so both fit together.
+STEPS
+- Each client keeps a local copy and applies keystrokes **immediately**, so typing feels instant.
+- Each edit is sent to the server as an operation (insert "x" at position 5, delete 3 characters at 10).
+- The server puts operations in one order, **transforms** each against concurrent ones, applies it and broadcasts it.
+- Clients apply incoming operations (transformed against their own unacknowledged edits).
+- The server periodically saves snapshots plus the operation log so history and recovery are possible.
+- Cursors and presence travel on the same WebSocket channel.
+IDEAS
+- Operational Transformation :: Rewrites concurrent operations so that applying them in either order gives the same text. Needs a central server for ordering; used by Google Docs.
+- CRDT :: Gives every character a unique, ordered ID so edits merge without a central referee; works peer-to-peer and offline, at the cost of more metadata.
+- Optimistic local apply :: Apply first, reconcile after; users never wait for the network.
+- Snapshots + log :: A document is a base snapshot plus the operations since; this also gives version history.
+SAY
+- "Edits are operations, not whole documents; I'd choose OT with a central sequencer, or a CRDT if offline editing matters."
+- "One document is served by one session server at a time, which keeps ordering simple."
+AVOID
+- Last-write-wins on the whole document.
+- Locking the document for one editor at a time.
+
+@dive design-an-email-service-gmail-style
+NUTSHELL
+An email service receives mail from the world, stores it per mailbox, lets users search and organise it, and sends mail out, all while fighting spam. ==Mail travels over standard protocols (SMTP in and out), so your system sits behind those protocols and adds storage, search and spam filtering.==
+ANALOGY
+A giant post office with a sorting hall (receive and filter), a private locker for every customer (mailbox storage), a catalogue (search) and a dispatch desk for outgoing mail.
+STEPS
+- An external server connects over SMTP; MX records in DNS point it to your inbound servers.
+- Inbound checks run: sender authentication (SPF, DKIM, DMARC), virus and spam scoring.
+- Accepted mail is written to the recipient's mailbox store (partitioned by user) and indexed for search.
+- A push or sync notification tells the user's clients something new arrived.
+- Outgoing mail goes to a queue; sender workers deliver over SMTP with retry and backoff.
+- Attachments are stored in object storage and referenced from the message.
+IDEAS
+- SPF, DKIM, DMARC :: DNS-based checks that prove a message really came from the domain it claims; the main defence against spoofing.
+- Mailbox sharding :: Partition by user ID, so one user's mail lives together and a single shard serves their inbox.
+- Spam filtering :: A mix of sender reputation, rules and machine-learned content scoring; borderline mail goes to the spam folder instead of being dropped.
+- Search :: A per-user inverted index updated asynchronously, so a new email becomes searchable within seconds.
+SAY
+- "SMTP gateways are stateless; storage is sharded per mailbox; spam filtering is a pipeline before delivery."
+- "Large attachments live in object storage, not in the mailbox database."
+AVOID
+- Rejecting valid mail because of an over-aggressive filter.
+- Forgetting retries, bounces and queueing for outgoing mail.
+
+@dive design-youtube
+NUTSHELL
+YouTube lets people upload videos and millions watch them smoothly on any device and connection. Two pipelines matter: **upload and processing**, and **playback**. ==A raw upload is converted into many resolutions in small chunks, stored cheaply, and served from CDNs close to viewers.==
+ANALOGY
+A film distributor: the original reel arrives once, is copied into several formats and sizes, and the copies are shipped to local cinemas so audiences never wait for the original to cross the ocean.
+STEPS
+- The uploader sends the file in resumable chunks straight to object storage.
+- An event starts a **transcoding pipeline**: split the video into segments and encode each in many resolutions and bitrates in parallel.
+- Thumbnails, captions and moderation checks run; metadata is saved.
+- The player requests a manifest (HLS or DASH) listing the available segments.
+- The player picks a quality that fits the bandwidth and switches as conditions change (adaptive bitrate).
+- Segments come from the nearest CDN edge; popular videos are cached close to viewers.
+IDEAS
+- Adaptive bitrate streaming :: The video is cut into a few seconds per segment at several qualities; the player chooses per segment, so it adapts without stopping.
+- Parallel transcoding :: Splitting a long video into chunks lets hundreds of workers encode it at once, cutting processing time.
+- CDN tiers :: Hot videos sit at the edge; the long tail is fetched from regional or origin storage on demand.
+- Metadata vs bytes :: Titles, views and comments live in databases; the video bytes live in object storage and CDNs. View counts are batched, not updated per view.
+SAY
+- "Upload goes direct to storage; a DAG of transcoding jobs produces HLS/DASH renditions."
+- "The CDN absorbs nearly all read traffic; I'd pre-warm it for expected viral videos."
+AVOID
+- Serving the original file to everyone.
+- Updating a database row on every single view.
+
+@dive design-spotify
+NUTSHELL
+Spotify streams audio on demand. Compared with video, files are small, so the focus shifts to **catalogue, search, playlists, recommendations and licensing**, plus smooth playback on poor networks and offline downloads.
+==Audio files are chunked and cached at the edge like video, but the real complexity is the metadata and the personalisation around them.==
+ANALOGY
+A giant jukebox in your pocket: the songs are stored in warehouses near you, the catalogue tells you what exists, and a personal DJ suggests what to play next.
+STEPS
+- The catalogue stores tracks, albums and artists with rich metadata, indexed for search.
+- Pressing play requests a stream; the service checks licensing and region, then returns signed URLs for audio chunks.
+- The client buffers a few chunks ahead and prefetches the next track in the queue.
+- Playback events (what you played, skipped, liked) stream into a pipeline for recommendations and royalty accounting.
+- Playlists are stored as ordered lists of track IDs with a collaborative-edit version.
+- Downloads store encrypted chunks on the device for offline use.
+IDEAS
+- Chunked audio at several bitrates :: Like video, the player picks a quality that fits the network and switches when it changes.
+- Prefetching :: Loading the start of the next song in advance makes the gap vanish.
+- Event pipeline :: Each play is an event; it feeds recommendations, charts and payments to rights-holders, so it must not be lost or double-counted.
+- Playlists as lists of IDs :: Cheap to store and share; hydrate track details from the catalogue cache when displayed.
+SAY
+- "Streaming is CDN plus chunking; the interesting parts are search, recommendations and exact play counting."
+- "Offline mode needs DRM-protected downloads and periodic license checks."
+AVOID
+- Treating it as just a file server.
+- Ignoring licensing, regions and royalty accuracy.
+
+@dive design-netflix
+NUTSHELL
+Netflix is video streaming with a twist: it owns its delivery network. ==It places its own cache appliances (Open Connect) inside internet providers, fills them overnight with the titles people will want, and serves almost all video from there.== The rest of the platform (accounts, recommendations, billing) runs in the cloud and is built to survive failures.
+ANALOGY
+Instead of trucking every film from a central warehouse each time, the distributor places a small shelf of popular films inside every neighbourhood store, restocked at night when roads are empty.
+STEPS
+- New titles are encoded into many formats and qualities (per-title and per-scene optimisation).
+- Overnight, popular and predicted-popular files are pushed to cache boxes inside ISPs.
+- When you press play, the control plane (in the cloud) authenticates you, picks the best cache box and returns a manifest.
+- The player downloads segments from that box and adapts quality to the network.
+- Playback telemetry feeds recommendations, quality monitoring and capacity planning.
+- Chaos engineering constantly kills instances to prove the system keeps working.
+IDEAS
+- Control plane vs data plane :: The cloud decides what to play and where from; the edge boxes serve the bytes. Split them and each scales independently.
+- Pre-positioning :: Because demand is predictable, content is pushed to the edge before it is requested instead of being cached on first miss.
+- Per-title encoding :: A cartoon needs less bitrate than an action film for the same quality, so encodes are tuned per title to save bandwidth.
+- Chaos engineering :: Randomly failing real instances (Chaos Monkey) makes failure a normal event the system is designed for.
+SAY
+- "Video bytes come from edge appliances; the cloud handles only metadata and control."
+- "I'd design the control plane for graceful degradation, for example a cached home page if recommendations fail."
+AVOID
+- Routing video through the cloud servers.
+- Assuming a single region; Netflix is multi-region active-active.
+
+@dive design-uber-rider-driver-matching
+NUTSHELL
+Uber matches a rider with a nearby driver in seconds. That needs **fast location updates, a spatial index to find nearby drivers, and a matching step that avoids giving one driver to two riders**.
+==Drivers send their GPS location every few seconds; the system stores only the latest position in an in-memory geospatial index.==
+ANALOGY
+A taxi dispatcher with a live map of every cab; when you call, she looks at the cabs closest to you, offers the ride to one, and if the driver declines, to the next.
+STEPS
+- Driver apps send location updates every 3 to 5 seconds; the latest position overwrites the old one in a geo index (geohash cells, quadtree or H3).
+- A rider requests a trip; the service finds drivers in the rider's cell and neighbouring cells.
+- Candidates are ranked by estimated pickup time (not just straight-line distance).
+- The best driver gets an offer with a short timeout; if they decline or time out, the next is tried.
+- Accepting **locks** the driver to the trip, so two riders cannot get the same driver.
+- Trip state changes (accepted, arrived, started, ended) are stored and drive pricing and payments.
+IDEAS
+- Spatial index :: Dividing the map into cells turns "who is nearby" into "who is in these few cells", which is a cheap lookup.
+- Latest-location store :: Locations are write-heavy and short-lived, so they live in memory (Redis-like), with history sent to a stream for analytics.
+- Matching and locking :: Use an atomic claim (compare-and-set) on the driver's state so double booking is impossible.
+- Surge pricing :: Count demand and supply per cell over a short window and raise prices where demand outstrips supply.
+SAY
+- "Location is high-volume, low-durability data, so I keep only the latest in memory."
+- "Dispatch is region-scoped, so I shard everything by city or cell."
+AVOID
+- Writing every GPS ping to a relational database.
+- Ignoring the race of two riders choosing the same driver.
